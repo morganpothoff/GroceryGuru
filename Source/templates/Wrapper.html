@@ -7,27 +7,35 @@
 	</head>
 
 	<header>
-		<nav class="navbar navbar-expand-lg navbar-light" style="background-color: #2EF49D;">
-			<a class="navbar-brand" href="/"><b>Grocery Guru</b></a>
+		<nav class="navbar navbar-expand-lg navbar-light" style="background-color: #7CFFC4;">
+<!-- 		<nav class="navbar navbar-expand-lg navbar-light" style="background-color: #2EF49D;">
+ -->			<a class="navbar-brand" href="/" style="font-family:Candara;font-size:25px;"><b>Grocery Guru</b></a>
 			<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
 		    	<span class="navbar-toggler-icon"></span>
 			</button>
 			<div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-				<div class="navbar-nav">
-					<a class="nav-item nav-link active" href="/">Home <span class="sr-only">(current)</span></a>
-					<a class="nav-item nav-link" href="/About">About</a>
-					<a class="nav-item nav-link" href="/MyPantry">My Pantry</a>
-					<a class="nav-item nav-link disabled" href="/Recipes">Recipes</a>
-					<a class="nav-item nav-link" href="/MyAccount">My Account</a>
+				<div class="navbar-nav" style="font-family:Candara;">
+					<a class="nav-item nav-link active" href="/"><b>Home</b><span class="sr-only">(current)</span></a>
+					<a class="nav-item nav-link active" href="/About"><b>About</b></a>
+					<a class="nav-item nav-link active" href="/MyPantry"><b>My Pantry</b></a>
+					<a class="nav-item nav-link disabled" href="/Recipes"><b>Recipes</b></a>
+					<a class="nav-item nav-link active" href="/MyAccount"><b>My Account</b></a>
 				</div>
 			</div>
+
+			<form class="form-inline my-2 my-lg-0" style="font-family:Candara;">
+				<input class="form-control mr-sm-2" type="search" placeholder="Search">
+				<button class="btn btn-outline-success my-2 my-sm-0" type="submit" style="color:black;border-color:black;">Search</button>
+			</form>
 		</nav>
 	</header>
 
-	<body style="height:100%;">
-		<div style="height:15px; width:100%; padding-left: 15px;">
+	<body style="height:100%;font-family:Candara;">
+		<div style="height:15px; width:100%; padding-left:35px;">
+			<br>
+			{% block body %}
+			{% endblock %}
+			<br>
 		</div>
-		{% block body %}
-		{% endblock %}
 	</body>
 </html>
