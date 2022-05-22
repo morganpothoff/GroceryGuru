@@ -34,9 +34,19 @@ def myPantry():
 	return render_template("MyPantry.html")
 
 
+@app.route("/Recipes")
+def recipes():
+	return render_template("Recipes.html")
+
+
 @app.route("/About")
 def about():
 	return render_template("About.html")
+
+
+@app.route("/LearnMore")
+def learnMore():
+	return render_template("LearnMore.html")
 
 
 @app.route("/MyAccount")
