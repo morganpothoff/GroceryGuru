@@ -15,9 +15,12 @@ app = Flask(__name__, static_url_path="/static")
 
 
 @app.route("/")
-def home():
-	return render_template("Home.html")
+def openingHome():
+	return render_template("OpeningHome.html")
 
+# @app.route("/")
+# def home():
+# 	return render_template("Home.html")
 
 @app.route("/Login")
 def login():
