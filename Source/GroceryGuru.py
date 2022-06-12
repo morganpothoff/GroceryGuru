@@ -26,6 +26,9 @@ def openingHome():
 def login():
 	return render_template("Login.html")
 
+@app.route("/ResetPassword")
+def resetPassword():
+	return render_template("ResetPassword.html")
 
 @app.route("/CreateAccount")
 def createAccount():

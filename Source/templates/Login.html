@@ -7,9 +7,11 @@
 			<label for="uname"><b>Username</b></label>
 			<input type="text" placeholder="Enter Username" name="uname" required>
 			<br><br>
+
 			<label for="psw"><b>Password</b></label>
 			<input type="password" placeholder="Enter Password" name="pass" required>
 			<br><br>
+
 			<button type="submit" style="background-color:#7CFFC4;">Login</button>
 			<span style="font-size:14px;"><i>Don't have an account? </i><a href="/CreateAccount">Create one!</a></span>
 			<!-- <label>
@@ -19,10 +21,8 @@
 
 		<div style="background-color:#E8E8E8; padding:8px 12px; border-radius:0 0 5px 5px;;">
 			<button type="button" onclick="window.location.href='/';" class="cancelbtn">Cancel</button>
-			<span class="psw">Forgot <a href="#">password?</a></span> <!-- create popup -->
+			<span class="psw">Forgot your <a href="/ResetPassword">password?</a></span> 
 		</div>
-
-		<!-- <a class="rightLink" href="/CreateAccount.php">Create Account</a> -->
 	</form>
 
 {% endblock %}
