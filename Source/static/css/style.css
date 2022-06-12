@@ -125,29 +125,45 @@
 
 /* --Login Page-- */
 form {
-	border: 3px solid #f1f1f1;
+	border: 3px solid #C8C8C8;
+	border-radius: 8px;
 	width: 500px;  
     margin-left: auto;  
     margin-right: auto;
 }
 
+.loginHeader {
+	width: 500px;  
+    margin-left: auto;  
+    margin-right: auto;  
+}
+
 input[type=text], input[type=password] {
 	width: 100%;
-	padding: 12px 20px;
+	padding: 10px 20px;
 	margin: 8px 0;
 	display: inline-block;
-	border: 1px solid #ccc;
+	border: 1px solid #A8A8A8;
+	border-radius: 5px;
 	box-sizing: border-box;
 }
 
 /* Button attribute */
 button {
-	background-color: #04AA6D;
-	color: white;
-	padding: 14px 20px;
-	margin: 8px 0;
-	border: none;
+	padding: 10px 20px;
+	margin: 5px 0;
+	border: 1px solid #A8A8A8;
+	border-radius: 12px;
 	cursor: pointer;
+	width: 100%;
+}
+
+.largeButton {
+	background-color:#FB3640; 
+	border-radius: 8px;
+	font-size:20px; 
+	padding:10px 20px 10px 20px; 
+	float:left; 
 }
 
 button:hover {
@@ -179,4 +195,12 @@ span.psw {
 	.cancelbtn {
 		width: 100%;
 	}
+}
+
+
+
+footer {
+	background-color: #D3D3D3;
+	position: absolute;
+	right: 0;bottom:0;left:0;
 }
