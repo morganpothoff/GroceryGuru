@@ -1,12 +1,24 @@
 {% extends "Wrapper.html" %}
 {% block body %}
 
-	<h2 style="padding-left: 20px; padding-top: 60px">Grocery Guru</h2>
+	<h4 style="padding-left:20px; padding-top:70px">Select a list to get started!</h2>
 	<br>
-	
-	<p>login and sign up buttons</p>
-	<p><b>Home page is in the works!</b></p>
-	<P>some kind of slogan... </P>
-	<p> angry refrigerator picture</p>
+
+	<span style="display:inline; display:flex; justify-content:center;">
+		<input type="button" class="btn btn-outline homeButton" style="margin-right:50px; background-color:#FF4D4D;" onclick="window.location.href='/MyPantry';" value="My Pantry"/>
+		<input type="button" class="btn btn-outline homeButton" style="margin-left:50px; background-color:#A3D9FF;"" onclick="window.location.href='/MyFridge';" value="My Fridge"/>
+	</span>
+	<br>
+
+	<span style="display:inline; display:flex; justify-content:center;">
+		<input type="button" class="btn btn-outline homeButton" style="margin-right:50px; background-color:#FFFAA0;" onclick="window.location.href='/MySpices';" value="My Spices"/>
+		<input type="button" class="btn btn-outline homeButton" style="margin-left:50px; background-color:#E0E0E0" onclick="window.location.href='/MyTools';" value="My Tools"/>
+	</span>
+	<br>
+
+	<span style="display:inline; display:flex; justify-content:center;">
+		<input type="button" class="btn btn-outline homeButton" style="background-color:#7CFFC4;" onclick="window.location.href='/AllItems';" value="All Items"/>
+	</span>
+	<br>
 
 {% endblock %}

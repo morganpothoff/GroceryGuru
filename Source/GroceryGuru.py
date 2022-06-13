@@ -14,25 +14,33 @@ import os
 app = Flask(__name__, static_url_path="/static")
 
 
+######################### Pre Login #########################
 @app.route("/")
 def openingHome():
 	return render_template("OpeningHome.html")
 
-# @app.route("/")
-# def home():
-# 	return render_template("Home.html")
 
 @app.route("/Login")
 def login():
 	return render_template("Login.html")
 
+
 @app.route("/ResetPassword")
 def resetPassword():
 	return render_template("ResetPassword.html")
 
+
 @app.route("/CreateAccount")
 def createAccount():
 	return render_template("CreateAccount.html")
+
+
+
+######################## Post Login #########################
+   ######################## Lists ########################
+@app.route("/Home")
+def home():
+	return render_template("Home.html")
 
 
 @app.route("/MyPantry")
@@ -40,24 +48,36 @@ def myPantry():
 	return render_template("MyPantry.html")
 
 
+@app.route("/MyFridge")
+def myFridge():
+	return render_template("MyFridge.html")
+
+
+@app.route("/MySpices")
+def mySpices():
+	return render_template("MySpices.html")
+
+
+@app.route("/MyTools")
+def myTools():
+	return render_template("MyTools.html")
+
+
 @app.route("/Recipes")
 def recipes():
 	return render_template("Recipes.html")
 
 
+   ######################## Other ########################
 @app.route("/About")
 def about():
 	return render_template("About.html")
 
 
-@app.route("/LearnMore")
-def learnMore():
-	return render_template("LearnMore.html")
-
-
 @app.route("/MyAccount")
 def myAccount():
 	return render_template("AccountInfo.html")
+
 
 
 app.run(host="localhost", port=8000, debug=True)
