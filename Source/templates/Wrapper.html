@@ -19,22 +19,46 @@
 		    	<span class="navbar-toggler-icon"></span>
 			</button>
 
-			<div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-				<div class="navbar-nav" style="font-family:Candara; font-size:18px;">
-					<a class="nav-item nav-link active" href="/Home"><b>Home</b><span class="sr-only"></span></a>
-					<a class="nav-item nav-link active" href="/About"><b>About</b></a>
-					<a class="nav-item nav-link active" href="/MyFoods"><b>Foods</b></a>
-					<a class="nav-item nav-link active" href="/MyTools"><b>Tools</b></a>
-					<a class="nav-item nav-link disabled" href="/Recipes"><b>Recipes</b></a>
-					<!-- <a class="nav-item nav-link active" href="/MyAccount"><b>My Account</b></a> -->
+			<div class="collapse navbar-collapse" id="navbarNavAltMarkup" style="font-family:Candara; font-size:18px;">
+				<div class="collapse navbar-collapse" id="navbarNavDropdown">
+					<ul class="navbar-nav">
+						<li class="nav-item active">
+							<a class="nav-link" href="/Home">Home<span class="sr-only"></span></a>
+						</li>
+
+						<li class="nav-item active dropdown">
+							<a class="nav-link dropdown-toggle" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Shopping</a>
+							<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+								<a class="dropdown-item" href="#">Grocery List</a>
+								<div class="divider dropdown-divider"></div>
+								<a class="dropdown-item" href="#">Add New List</a>
+							</div>
+						</li>
+
+						<li class="nav-item active dropdown">
+							<a class="nav-link dropdown-toggle" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Home</a>
+							<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+								<a class="dropdown-item" href="#">My Pantry</a>
+								<a class="dropdown-item" href="#">My Refrigerator</a>
+								<a class="dropdown-item" href="#">My Spice Rack</a>
+								<div class="divider dropdown-divider"></div>
+								<a class="dropdown-item" href="#">My Tools</a>
+								<div class="divider dropdown-divider"></div>
+								<a class="dropdown-item" href="#">Add New List</a>
+							</div>
+						</li>
+
+						<li class="nav-item disabled">
+							<a class="nav-link" href="#">Recipes</a>
+						</li>
+					</ul>
 				</div>
 			</div>
 
 			<div class="nav-item dropdown" style="font-family:Candara; padding-right:80px">
-			<a href="#" data-toggle="dropdown" class="nav-item nav-link dropdown-toggle user-action" style="color:#000"><img src="https://www.tutorialrepublic.com/examples/images/avatar/3.jpg" class="avatar" alt="Pic"><b>Profile</b><b class="caret"></b></a>
+			<a href="#" data-toggle="dropdown" class="nav-item nav-link dropdown-toggle user-action" style="color:#000000"><img src="https://www.tutorialrepublic.com/examples/images/avatar/3.jpg" class="avatar" alt="Pic">Profile<b class="caret"></b></a>
 				<div class="dropdown-menu">
-					<!-- Need to write pages! -->
-					<a href="/MyAccount" class="dropdown-item"><i class="fa fa-user-o"></i> My Account</a>
+					<a href="#" class="dropdown-item"><i class="fa fa-user-o"></i> My Account</a>
 					<a href="#" class="dropdown-item"><i class="fa fa-calendar-o"></i> Calendar</a>
 					<a href="#" class="dropdown-item"><i class="fa fa-sliders"></i> Settings</a>
 					<div class="divider dropdown-divider"></div>
