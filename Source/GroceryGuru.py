@@ -20,9 +20,15 @@ def openingHome():
 	return render_template("OpeningHome.html")
 
 
-@app.route("/Login")
+@app.route("/Login", methods=["GET", "POST"])
 def login():
-	return render_template("Login.html")
+	error = None
+	if request.method == "POST":
+		if request.form["uname"] != "admin" or request.form["pass"] != "admin":
+			error = "Invalid Credentials. Please try again."
+		else:
+			return redirect(url_for("home"))
+	return render_template("Login.html", error=error)
 
 
 @app.route("/ResetPassword")
