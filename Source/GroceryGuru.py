@@ -7,7 +7,8 @@ from datetime import datetime
 import database.DatabaseConnection
 import json
 import os
-
+import psycopg2
+import Functions
 #import DB_Connections
 
 
@@ -36,9 +37,13 @@ def resetPassword():
 	return render_template("ResetPassword.html")
 
 
-@app.route("/CreateAccount")
+@app.route("/CreateAccount", methods=["GET", "POST"])
 def createAccount():
-	return render_template("CreateAccount.html")
+	if request.method == "POST":
+		Functions.add_new_user(request)
+		return render_template("Home.html")		# Set logged in user to new username
+	else:
+		return render_template("CreateAccount.html")
 
 
 
@@ -72,6 +77,7 @@ def myTools():
 @app.route("/Recipes")
 def recipes():
 	return render_template("Recipes.html")
+
 
 
    ######################## Other ########################
