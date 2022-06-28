@@ -56,9 +56,6 @@ def Persons_email_exists(cursor: psycopg2.extensions.cursor, email: str) -> bool
 	DETAILS: Makes a query to the DB. Evaluates whether the email exists.
 	RETURNS: True is the email is found, false otherwise.
 	"""
-	cursor.execute("""SELECT * FROM "Persons";""")
-	[print(result) for result in cursor]
-
 	cursor.execute("""SELECT * FROM "Persons" WHERE "Email" = %s;""", (email,))
 	return cursor.rowcount > 0
 
@@ -66,10 +63,10 @@ def Persons_email_exists(cursor: psycopg2.extensions.cursor, email: str) -> bool
 @connect
 def Persons_username_exists(cursor: psycopg2.extensions.cursor, username: str) -> bool:
 	"""
-	SUMMARY: Checks whether a Persons's email exists.
-	PARAMS:  The email to check.
-	DETAILS: Makes a query to the DB. Evaluates whether the email exists.
-	RETURNS: True is the email is found, false otherwise.
+	SUMMARY: Checks whether a Persons's username exists.
+	PARAMS:  The username to check.
+	DETAILS: Makes a query to the DB. Evaluates whether the username exists.
+	RETURNS: True is the username is found, false otherwise.
 	"""
 	cursor.execute("""SELECT * FROM "Persons" WHERE "Username" = %s;""", (username,))
 	return cursor.rowcount > 0
