@@ -40,8 +40,12 @@ def resetPassword():
 @app.route("/CreateAccount", methods=["GET", "POST"])
 def createAccount():
 	if request.method == "POST":
-		Functions.add_new_user(request)
-		return render_template("Home.html")		# Set logged in user to new username
+		try:
+			Functions.add_new_user(request)
+			return render_template("Home.html")		# Set logged in user to new username
+		except Exception as error:
+			pass
+			#TODO: Handle exceptions
 	else:
 		return render_template("CreateAccount.html")
 
