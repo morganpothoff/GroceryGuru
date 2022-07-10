@@ -2,6 +2,14 @@
 {% block body %}
 
 	<h2 class="loginHeader" style="text-align:left; padding:12px 12px 12px 20px;"><b>Create Account</b></h2>
+	
+	{% if error %}
+		<div class="loginHeader alert alert-warning alert-dismissible d-flex align-items-center fade show">
+			<i class="bi-exclamation-triangle-fill"></i> 
+			<strong class="mx-2">Error:</strong> {{ error }}
+		</div>
+	{% endif %}
+
 	<form method="post">
 		<div class="container">
 			<label for="email"><b>Email</b></label>

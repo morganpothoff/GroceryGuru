@@ -29,8 +29,7 @@ def login():
 			return render_template("Home.html")		# Set logged in user to new username
 		except Exception as error:
 			print(error)
-			pass
-			#TODO: Handle exceptions
+			return render_template("Login.html", error=error)
 	else:
 		return render_template("Login.html")
 
@@ -56,8 +55,9 @@ def createAccount():
 			return render_template("Home.html")		# Set logged in user to new username
 		except Exception as error:
 			print(error)
-			pass
-			#TODO: Handle exceptions
+			import traceback
+			traceback.print_exc()
+			return render_template("CreateAccount.html", error=error)
 	else:
 		return render_template("CreateAccount.html")
 

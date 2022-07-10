@@ -96,7 +96,7 @@ def add_new_user(cursor: psycopg2.extensions.cursor, request: werkzeug.local.Loc
 	cursor.execute(query, (email, username, request.form["pass"]))
 	print(cursor.statusmessage)
 
-	user_info: int = cursor.fetchone()[0]
+	user_info: dict = cursor.fetchone()[0]
 	print(user_info)
 	#TODO: Get Person Object for user_id
 	return user_info
