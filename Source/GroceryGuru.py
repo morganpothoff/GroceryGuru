@@ -23,13 +23,24 @@ def openingHome():
 
 @app.route("/Login", methods=["GET", "POST"])
 def login():
-	error = None
 	if request.method == "POST":
-		if request.form["uname"] != "admin" or request.form["pass"] != "admin":
-			error = "Invalid Credentials. Please try again."
-		else:
-			return redirect(url_for("home"))
-	return render_template("Login.html", error=error)
+		try:
+			Functions.login_user(request)
+			return render_template("Home.html")		# Set logged in user to new username
+		except Exception as error:
+			print(error)
+			pass
+			#TODO: Handle exceptions
+	else:
+		return render_template("Login.html")
+
+	# error = None
+	# if request.method == "POST":
+	# 	if request.form["uname"] != "admin" or request.form["pass"] != "admin":
+	# 		error = "Invalid Credentials. Please try again."
+	# 	else:
+	# 		return redirect(url_for("home"))
+	# return render_template("Login.html", error=error)
 
 
 @app.route("/ResetPassword")
@@ -44,6 +55,7 @@ def createAccount():
 			Functions.add_new_user(request)
 			return render_template("Home.html")		# Set logged in user to new username
 		except Exception as error:
+			print(error)
 			pass
 			#TODO: Handle exceptions
 	else:

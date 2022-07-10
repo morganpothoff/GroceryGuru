@@ -4,6 +4,7 @@
 
 import os
 import psycopg2
+import psycopg2.extras
 import werkzeug
 
 
@@ -33,7 +34,7 @@ def connect(function: callable) -> callable:
 
 		connection = psycopg2.connect(connection_string)
 		connection.autocommit = True  # Automatically commit changes to DB
-		cursor = connection.cursor()
+		cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
 		try:
 			function_result = function(cursor, *args, **kwargs)
@@ -83,19 +84,42 @@ def add_new_user(cursor: psycopg2.extensions.cursor, request: werkzeug.local.Loc
 	if(Persons_username_exists(username)):
 		raise Exception(f"There is already an account for username '{username}'.")
 
-	if request.form["pass"] != request.form["confirmPass"]:
+	if(request.form["pass"] != request.form["confirmPass"]):
 		raise Exception("The password and confirmed password do not match. Please try again.")
 
 	query = \
 	"""
 	INSERT INTO "Persons" ("Email", "Username", "Password")
 	  VALUES (%s, %s, %s)
-	  RETURNING "PersonID";
+	  RETURNING *;
 	"""
 	cursor.execute(query, (email, username, request.form["pass"]))
 	print(cursor.statusmessage)
 
-	user_id: int = cursor.fetchone()[0]
-	print(user_id)
+	user_info: int = cursor.fetchone()[0]
+	print(user_info)
 	#TODO: Get Person Object for user_id
-	return user_id
+	return user_info
+
+
+@connect
+def login_user(cursor: psycopg2.extensions.cursor, request: werkzeug.local.LocalProxy):
+	query = \
+	"""
+	SELECT
+		"Username", "Password"
+	FROM
+		"Persons"
+	WHERE
+		"Username" = %s;
+	"""
+	cursor.execute(query, (request.form["uname"],))
+	user_info = [dict(user) for user in cursor]
+
+	if(not user_info):
+		raise Exception(f"This account does not exist. Please try again.")
+	else:		
+		if(not(user_info[0]["Password"]==request.form["pass"])):
+			raise Exception(f"The entered password does not match the username. Please try again.")
+	
+	return user_info
