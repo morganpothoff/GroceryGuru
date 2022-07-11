@@ -51,7 +51,7 @@ def login():
 		try:
 			user = Functions.login_user(request)
 			login_user(user, remember=True)
-			return render_template("Home.html")
+			return redirect("Home")
 		except Exception as error:
 			traceback.print_exc()							###########
 			print(error)										###########
@@ -85,8 +85,9 @@ def createAccount():
 @app.route("/Home")
 @login_required
 def home():
-
-	return render_template("Home.html")
+	# Get username from request
+	# Add username to render_template
+	return render_template("Home.html", username="Some crap")
 
 
 @app.route("/MyPantry")
@@ -133,12 +134,11 @@ def myAccount():
 	return render_template("AccountInfo.html")
 
 
-################
-@app.route('/Logout', methods=['POST'])
+@app.route('/Logout', methods=['GET'])
 @login_required
 def logout():
 	logout_user()
-	return jsonify(**{'result': 200, 'data': {'message': 'logout success'}})
+	return render_template("OpeningHome.html")
 
 
 
