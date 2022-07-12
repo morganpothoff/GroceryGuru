@@ -12,7 +12,10 @@ import json
 import os
 import psycopg2
 import Functions
+from datetime import timedelta
 import traceback
+import werkzeug
+
 #import DB_Connections
 
 
@@ -36,6 +39,9 @@ def load_user(user_id):
 	return active_user
 
 
+@app.before_request
+def make_session_permanent():
+    session.permanent = False
 
 
 
@@ -50,7 +56,8 @@ def login():
 	if request.method == "POST":
 		try:
 			user = Functions.login_user(request)
-			login_user(user, remember=True)
+			login_user(user, remember=True, duration=timedelta(days=1))
+			# return redirect("Home", args=(request))
 			return redirect("Home")
 		except Exception as error:
 			traceback.print_exc()							###########
@@ -69,8 +76,9 @@ def resetPassword():
 def createAccount():
 	if request.method == "POST":
 		try:
-			Functions.add_new_user(request)
-			return render_template("Home.html")		# Set logged in user to new username
+			user = Functions.add_new_user(request)
+			login_user(user, remember=True)
+			return redirect("Home")
 		except Exception as error:
 			traceback.print_exc()							###########
 			print(error)										###########
@@ -83,11 +91,14 @@ def createAccount():
 ######################## Post Login #########################
    ######################## Lists ########################
 @app.route("/Home")
+# @app.route("/Home/<request>")
 @login_required
 def home():
+# def home(request: werkzeug.local.LocalProxy):
 	# Get username from request
-	# Add username to render_template
-	return render_template("Home.html", username="Some crap")
+	print(current_user)
+	return render_template("Home.html", username=current_user.username)
+	# return render_template("Home.html", username="Some crap")
 
 
 @app.route("/MyPantry")
