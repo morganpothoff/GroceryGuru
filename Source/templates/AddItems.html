@@ -1,0 +1,38 @@
+{% extends "Wrapper.html" %}
+{% block body %}
+
+	<h2 class="loginHeader" style="text-align:center; padding:70px 0 20px 0;"><b>Add Item to List</b></h2>
+
+	{% if error %}
+		<div class="loginHeader alert alert-warning alert-dismissible d-flex align-items-center fade show">
+			<i class="bi-exclamation-triangle-fill"></i> 
+			<strong class="mx-2">Error:</strong> {{ error }}
+		</div>
+	{% endif %}
+
+	<form name="login" method="POST">
+		<div class="container">
+			<label for="uname"><b>Item Name</b></label>
+			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<br><br>
+
+			<label for="uname"><b>Item Name</b></label>
+			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<br><br>
+
+			<label for="uname"><b>Item Name</b></label>
+			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<br><br>
+
+			<label for="uname"><b>Item Name</b></label>
+			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<br><br>
+
+			<label for="uname"><b>Item Name</b></label>
+			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<br><br>
+
+			<button type="submit" class="longButton" style="background-color:#7CFFC4;">Add Item</button>
+	</form>
+
+{% endblock %}
