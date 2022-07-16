@@ -57,7 +57,6 @@ def login():
 		try:
 			user = Functions.login_user(request)
 			login_user(user, remember=True, duration=timedelta(days=1))
-			# return redirect("Home", args=(request))
 			return redirect("Home")
 		except Exception as error:
 			traceback.print_exc()							###########
@@ -67,6 +66,7 @@ def login():
 		return render_template("Login.html")
 
 
+# TODO
 @app.route("/ResetPassword")
 def resetPassword():
 	return render_template("ResetPassword.html")
@@ -77,7 +77,7 @@ def createAccount():
 	if request.method == "POST":
 		try:
 			user = Functions.add_new_user(request)
-			login_user(user, remember=True)
+			login_user(user, remember=True, duration=timedelta(days=1))
 			return redirect("Home")
 		except Exception as error:
 			traceback.print_exc()							###########
