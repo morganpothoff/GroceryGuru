@@ -112,7 +112,8 @@ def add_new_user(cursor: psycopg2.extensions.cursor, request: werkzeug.local.Loc
 	if(not user_info):
 		raise Exception("DB Error while attempting to add new user to DB")
 
-	return dict(user_info)
+	current_user = User(user_info["PersonID"], user_info["Email"], user_info["Username"], user_info["Password"])
+	return current_user
 
 
 @connect

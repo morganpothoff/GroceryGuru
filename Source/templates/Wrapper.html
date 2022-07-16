@@ -39,13 +39,13 @@
 					<li class="nav-item dropdown active">
 						<a class="nav-link dropdown-toggle" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">My Items</a>
 						<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-							<a class="dropdown-item" href="#">My Pantry</a>
-							<a class="dropdown-item" href="#">My Refrigerator</a>
-							<a class="dropdown-item" href="#">My Spice Rack</a>
+							<a class="dropdown-item" href="/ViewItems">My Pantry</a>
+							<a class="dropdown-item" href="/ViewItems">My Refrigerator</a>
+							<a class="dropdown-item" href="/ViewItems">My Spice Rack</a>
 							<div class="divider dropdown-divider"></div>
-							<a class="dropdown-item" href="#">My Tools</a>
+							<a class="dropdown-item" href="/ViewItems">My Tools</a>
 							<div class="divider dropdown-divider"></div>
-							<a class="dropdown-item" href="#">Add Item</a>
+							<a class="dropdown-item" href="/AddItems">Add Item</a>
 							<a class="dropdown-item" href="#">Add New List</a>
 						</div>
 					</li>
@@ -57,11 +57,11 @@
 			</div>
 
 			<div class="nav-item dropdown" style="font-family:Candara; padding-right:80px;">
-				<a href="#" data-toggle="dropdown" class="nav-item nav-link dropdown-toggle user-action" style="color:#000000"><img src="https://www.tutorialrepublic.com/examples/images/avatar/3.jpg" class="avatar" alt="Pic">
+				<a href="#" data-toggle="dropdown" class="nav-item nav-link dropdown-toggle user-action" style="color:#000000"><img src="/static/images/User.jpeg" class="user" alt="default">
 					{% if username %}
 						{{ username }}
 					{% else %}
-						You shouldn't be here
+						No User
 					{% endif %}
 					<b class="caret"></b></a>
 				<div class="dropdown-menu">
@@ -83,6 +83,8 @@
 			<br>
 		</div>
 	</body>
+
+	<br><br><br>
 
 	<footer class="page-footer font-small">
 		<div class="footer-copyright text-center py-3">The Grocery Guru</div>

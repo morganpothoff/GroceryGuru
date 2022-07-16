@@ -12,7 +12,10 @@ import json
 import os
 import psycopg2
 import Functions
+from datetime import timedelta
 import traceback
+import werkzeug
+
 #import DB_Connections
 
 
@@ -36,6 +39,9 @@ def load_user(user_id):
 	return active_user
 
 
+@app.before_request
+def make_session_permanent():
+    session.permanent = False
 
 
 
@@ -50,7 +56,7 @@ def login():
 	if request.method == "POST":
 		try:
 			user = Functions.login_user(request)
-			login_user(user, remember=True)
+			login_user(user, remember=True, duration=timedelta(days=1))
 			return redirect("Home")
 		except Exception as error:
 			traceback.print_exc()							###########
@@ -60,6 +66,7 @@ def login():
 		return render_template("Login.html")
 
 
+# TODO
 @app.route("/ResetPassword")
 def resetPassword():
 	return render_template("ResetPassword.html")
@@ -69,8 +76,10 @@ def resetPassword():
 def createAccount():
 	if request.method == "POST":
 		try:
-			Functions.add_new_user(request)
-			return render_template("Home.html")		# Set logged in user to new username
+			user = Functions.add_new_user(request)
+			print(user)
+			login_user(user, remember=True, duration=timedelta(days=1))
+			return redirect("Home")
 		except Exception as error:
 			traceback.print_exc()							###########
 			print(error)										###########
@@ -86,38 +95,50 @@ def createAccount():
 @login_required
 def home():
 	# Get username from request
-	# Add username to render_template
-	return render_template("Home.html", username="Some crap")
+	print(current_user)
+	return render_template("Home.html", username=current_user.username)
+
+
+@app.route("/ViewItems")
+@login_required
+def viewItems():
+	return render_template("ViewItems.html", username=current_user.username)
+
+
+@app.route("/AddItems")
+@login_required
+def addItems():
+	return render_template("AddItems.html", username=current_user.username)
 
 
 @app.route("/MyPantry")
 @login_required
 def myPantry():
-	return render_template("MyPantry.html")
+	return render_template("MyPantry.html", username=current_user.username)
 
 
 @app.route("/MyFridge")
 @login_required
 def myFridge():
-	return render_template("MyFridge.html")
+	return render_template("MyFridge.html", username=current_user.username)
 
 
 @app.route("/MySpices")
 @login_required
 def mySpices():
-	return render_template("MySpices.html")
+	return render_template("MySpices.html", username=current_user.username)
 
 
 @app.route("/MyTools")
 @login_required
 def myTools():
-	return render_template("MyTools.html")
+	return render_template("MyTools.html", username=current_user.username)
 
 
 @app.route("/Recipes")
 @login_required
 def recipes():
-	return render_template("Recipes.html")
+	return render_template("Recipes.html", username=current_user.username)
 
 
 
@@ -125,13 +146,13 @@ def recipes():
 @app.route("/About")
 @login_required
 def about():
-	return render_template("About.html")
+	return render_template("About.html", username=current_user.username)
 
 
 @app.route("/MyAccount")
 @login_required
 def myAccount():
-	return render_template("AccountInfo.html")
+	return render_template("AccountInfo.html", username=current_user.username)
 
 
 @app.route('/Logout', methods=['GET'])
