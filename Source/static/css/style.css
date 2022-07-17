@@ -90,7 +90,7 @@ form {
     margin-right: auto;  
 }
 
-input[type=text], input[type=password] {
+input[type=text], input[type=password], input[type=number], input[type=date] {
 	width: 100%;
 	padding: 10px 20px;
 	margin: 8px 0;
@@ -100,6 +100,15 @@ input[type=text], input[type=password] {
 	box-sizing: border-box;
 }
 
+select.select-items {
+	width: 100%;
+	padding: 10px 20px;
+	margin: 8px 0;
+	display: inline-block;
+	border: 1px solid #A8A8A8;
+	border-radius: 5px;
+	box-sizing: border-box;
+}
 
 
 /* ---------- Buttons ---------- */
@@ -113,6 +122,10 @@ button {
 
 .longButton {
 	width: 100%;
+}
+
+.halfButton {
+	width: 47%;
 }
 
 .largeButton {

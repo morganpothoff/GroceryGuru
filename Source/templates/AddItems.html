@@ -12,27 +12,36 @@
 
 	<form name="login" method="POST">
 		<div class="container">
-			<label for="uname"><b>Item Name</b></label>
-			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<label for="list"><b>Select a list: </b></label>
+			<select class="select-items" id="list" name="list">
+				<option value="Grocery-List">Grocery List</option>
+				<option value="Pantry-List">My Pantry</option>
+				<option value="Spice-List">My Spices</option>
+				<option value="Fridge-List">My Fridge</option>
+				<option value="Tool-List">My Tools</option>
+			</select>
 			<br><br>
 
-			<label for="uname"><b>Item Name</b></label>
-			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<label for="name"><b>Item Name</b></label>
+			<input type="text" placeholder="Wheat bread" name="itemName" value="{{ request.form.itemName }}" required>
 			<br><br>
 
-			<label for="uname"><b>Item Name</b></label>
-			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<label for="count"><b>Count</b></label>
+			<input type="number" placeholder="0" name="itemName" min="1" value="{{ request.form.itemName }}" required>
 			<br><br>
 
-			<label for="uname"><b>Item Name</b></label>
-			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<label for="quantity"><b>Quantity (Optional)</b></label>
+			<input type="text" placeholder="20 slices" name="itemName" value="{{ request.form.itemName }}">
 			<br><br>
 
-			<label for="uname"><b>Item Name</b></label>
-			<input type="text" placeholder="" name="itemName" value="{{ request.form.itemName }}" required>
+			<label for="expDate"><b>Expiration Date (Optional)</b></label><br>
+			<input type="date" name="itemName" min="{{ datetime.strftime("%Y-%m-%d") }}" value="{{ request.form.itemName }}">
+			<input type="checkbox" id="none" name="none" value="None">
+			<label for="none">None</label><br>
 			<br><br>
 
-			<button type="submit" class="longButton" style="background-color:#7CFFC4;">Add Item</button>
+			<button type="clear" class="halfButton" style="background-color:#7CFFC4;">Clear</button>
+			<button type="submit" class="halfButton" style="float:right; background-color:#7CFFC4;">Add Item</button>
 	</form>
 
 {% endblock %}

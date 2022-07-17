@@ -108,7 +108,7 @@ def viewItems():
 @app.route("/AddItems")
 @login_required
 def addItems():
-	return render_template("AddItems.html", username=current_user.username)
+	return render_template("AddItems.html", username=current_user.username, datetime=datetime.now())
 
 
 @app.route("/MyPantry")
