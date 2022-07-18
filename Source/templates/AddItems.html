@@ -27,20 +27,20 @@
 			<br><br>
 
 			<label for="count"><b>Count</b></label>
-			<input type="number" placeholder="0" name="itemName" min="1" value="{{ request.form.itemName }}" required>
+			<input type="number" placeholder="0" name="count" min="1" value="{{ request.form.count }}" required>
 			<br><br>
 
 			<label for="quantity"><b>Quantity (Optional)</b></label>
-			<input type="text" placeholder="20 slices" name="itemName" value="{{ request.form.itemName }}">
+			<input type="text" placeholder="20 slices" name="quantity" value="{{ request.form.quantity }}">
 			<br><br>
 
 			<label for="expDate"><b>Expiration Date (Optional)</b></label><br>
-			<input type="date" name="itemName" min="{{ datetime.strftime("%Y-%m-%d") }}" value="{{ request.form.itemName }}">
-			<input type="checkbox" id="none" name="none" value="None">
-			<label for="none">None</label><br>
+			<input type="date" name="expDate" min="{{ datetime.strftime('%Y-%m-%d') }}" value="{{ request.form.expDate }}">
+			<!-- <input type="checkbox" id="none" name="none" value="None"> -->
+			<!-- <label for="none">None</label><br> -->
 			<br><br>
 
-			<button type="clear" class="halfButton" style="background-color:#7CFFC4;">Clear</button>
+			<button type="clear" class="halfButton" style="background-color:#FB3640;">Clear</button>
 			<button type="submit" class="halfButton" style="float:right; background-color:#7CFFC4;">Add Item</button>
 	</form>
 
