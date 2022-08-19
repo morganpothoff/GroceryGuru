@@ -14,11 +14,11 @@
 		<div class="container">
 			<label for="list"><b>Select a list: </b></label>
 			<select class="select-items" id="list" name="list">
-				<option value="Grocery-List">Grocery List</option>
-				<option value="Pantry-List">My Pantry</option>
-				<option value="Spice-List">My Spices</option>
-				<option value="Fridge-List">My Fridge</option>
-				<option value="Tool-List">My Tools</option>
+				<option value="select" selected disabled hidden>- Select -</option>
+				# Read user's lists from DB for dropdown
+				{% for id, name in DefaultList.items() %}
+					<option value="{{ id }}"> {{ name }} </option>
+				{% endfor %}
 			</select>
 			<br><br>
 

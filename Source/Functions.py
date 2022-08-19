@@ -162,3 +162,22 @@ def get_user_by_id(cursor: psycopg2.extensions.cursor, user_id):
 
 	current_user = User(user_info["PersonID"], user_info["Email"], user_info["Username"], user_info["Password"])
 	return current_user
+
+
+@connect
+def get_all_lists_by_user_id(cursor: psycopg2.extensions.cursor, user_id) -> list:
+	"""
+	SUMMARY: Gets all the stored lists for user.
+	PARAMS:  The user_id to check.
+	DETAILS: Makes a query to the DB. 
+	RETURNS: Returns a list of the stored lists.
+	"""
+	
+	cursor.execute("""SELECT * FROM "List" WHERE "PersonID" = %s;""", (user_id,))
+	# cursor.execute("""SELECT * FROM "DefaultList"; """)
+	all_lists: list = []
+
+	for current_dictionary in cursor:
+		all_lists.append(dict(current_dictionary))
+
+	return all_lists

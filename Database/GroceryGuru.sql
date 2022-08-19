@@ -8,7 +8,7 @@ CREATE TABLE "Persons" (
 
 
 INSERT INTO "Persons" ("Email", "Username", "Password") VALUES
-	('morgan@groceryguru.com', 'morgan', 'morgan');
+	('tester@groceryguru.com', 'tester', 'tester');
 
 
 DROP TABLE IF EXISTS "Food" CASCADE;
@@ -43,12 +43,11 @@ CREATE TABLE "List" (
 );
 
 
--- INSERT INTO "List" ("Name", "PersonID") VALUES
--- 	('Grocery List', 1);
+-- Assign default lists to user "tester"
 INSERT INTO "List" ("Name", "PersonID")
 SELECT "DefaultList"."Name", "Persons"."PersonID"
 FROM "DefaultList"
-JOIN "Persons" ON "Persons"."Username" = 'morgan';
+JOIN "Persons" ON "Persons"."Username" = 'tester';
 
 
 DROP TABLE IF EXISTS "GroceryItem" CASCADE;

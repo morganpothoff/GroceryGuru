@@ -108,7 +108,10 @@ def viewItems():
 @app.route("/AddItems")
 @login_required
 def addItems():
-	return render_template("AddItems.html", username=current_user.username, datetime=datetime.now())
+	ListsQuery: list = Functions.get_all_lists_by_user_id(current_user.id)
+	dictionary_from_list = {dictionary["ListID"]: dictionary["Name"] for dictionary in ListsQuery}
+	
+	return render_template("AddItems.html", username=current_user.username, DefaultList=dictionary_from_list, datetime=datetime.now())
 
 
 @app.route("/MyPantry")
