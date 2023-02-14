@@ -1,4 +1,4 @@
-{% extends "Wrapper.html" %}
+{% extends "Wrapper.j2" %}
 {% block body %}
 
 	<h2 class="loginHeader" style="text-align:center; padding:70px 0 20px 0;"><b>Add Item to List</b></h2>
@@ -14,7 +14,6 @@
 		<div class="container">
 			<label for="list"><b>Select a list: </b></label>
 			<select class="select-items" id="list" name="list">
-				<option value="select" selected disabled hidden>- Select -</option>
 				# Read user's lists from DB for dropdown
 				{% for id, name in DefaultList.items() %}
 					<option value="{{ id }}"> {{ name }} </option>

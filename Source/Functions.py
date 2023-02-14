@@ -9,7 +9,8 @@ import psycopg2.extras
 import werkzeug
 
 
-# Connects to the database
+# ————————————————————————————————————————————————————— Database ————————————————————————————————————————————————————— #
+
 def close(*connections: list) -> None:
 	"""
 	SUMMARY: Closes all passed connections.
@@ -51,6 +52,9 @@ def connect(function: callable) -> callable:
 	inner.__name__ = function.__name__
 	return inner
 
+
+
+# ————————————————————————————————————————————————— Users/Logging In ————————————————————————————————————————————————— #
 
 @connect
 def Persons_email_exists(cursor: psycopg2.extensions.cursor, email: str) -> bool:
@@ -181,3 +185,52 @@ def get_all_lists_by_user_id(cursor: psycopg2.extensions.cursor, user_id) -> lis
 		all_lists.append(dict(current_dictionary))
 
 	return all_lists
+
+
+
+# ———————————————————————————————————————————————————— List Items ———————————————————————————————————————————————————— #
+
+@connect
+def add_new_item(cursor: psycopg2.extensions.cursor, request: werkzeug.local.LocalProxy):
+	"""
+	SUMMARY: Attempts to add a new item to the database.
+	PARAMS:  The request to be handled.
+	DETAILS: Makes a query to the DB. Evaluates whether the item exists. Inserts new item.
+	RETURNS: Exception raised
+	"""
+	
+	# selected_list: str = request.form["list"]
+	
+	# selected_list: str = request.form["itemName"]
+	# if(Persons_email_exists(email)):
+	# 	raise Exception(f"There is already an account for email '{email}'.")
+
+	# selected_list: int = request.form["count"]
+	# selected_list: str = request.form["quantity"]
+	# selected_list: date = datetime.strptime(request.form["expDate"], "%Y-%m-%d")
+
+
+
+	# username: str = request.form["uname"]
+	# if(Persons_username_exists(username)):
+	# 	raise Exception(f"There is already an account for username '{username}'.")
+
+	# if(request.form["pass"] != request.form["confirmPass"]):
+	# 	raise Exception("The password and confirmed password do not match. Please try again.")
+
+	# query = \
+	# """
+	# INSERT INTO "Persons" ("Email", "Username", "Password")
+	#   VALUES (%s, %s, %s)
+	#   RETURNING *;
+	# """
+	# cursor.execute(query, (email, username, request.form["pass"]))
+	# print(cursor.statusmessage)
+
+	# user_info: dict = cursor.fetchone()
+	# if(not user_info):
+	# 	raise Exception("DB Error while attempting to add new user to DB")
+
+	# current_user = User(user_info["PersonID"], user_info["Email"], user_info["Username"], user_info["Password"])
+	# return current_user
+

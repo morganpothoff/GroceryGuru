@@ -31,7 +31,7 @@ login_manager.login_view = "login"
 def load_user(user_id):
 	try:
 		active_user = Functions.get_user_by_id(user_id)
-	except:
+	except Exception as error:
 		traceback.print_exc()							###########
 		print(error)										###########
 		return None
@@ -48,7 +48,7 @@ def make_session_permanent():
 ######################### Pre Login #########################
 @app.route("/")
 def openingHome():
-	return render_template("OpeningHome.html")
+	return render_template("OpeningHome.j2")
 
 
 @app.route("/Login", methods=["GET", "POST"])
@@ -61,15 +61,15 @@ def login():
 		except Exception as error:
 			traceback.print_exc()							###########
 			print(error)										###########
-			return render_template("Login.html", error=error)
+			return render_template("Login.j2", error=error)
 	else:
-		return render_template("Login.html")
+		return render_template("Login.j2")
 
 
 # TODO
 @app.route("/ResetPassword")
 def resetPassword():
-	return render_template("ResetPassword.html")
+	return render_template("ResetPassword.j2")
 
 
 @app.route("/CreateAccount", methods=["GET", "POST"])
@@ -81,11 +81,9 @@ def createAccount():
 			login_user(user, remember=True, duration=timedelta(days=1))
 			return redirect("Home")
 		except Exception as error:
-			traceback.print_exc()							###########
-			print(error)										###########
-			return render_template("CreateAccount.html", error=error)
+			return render_template("CreateAccount.j2", error=error)
 	else:
-		return render_template("CreateAccount.html")
+		return render_template("CreateAccount.j2")
 
 
 
@@ -96,52 +94,62 @@ def createAccount():
 def home():
 	# Get username from request
 	print(current_user)
-	return render_template("Home.html", username=current_user.username)
+	return render_template("Home.j2", username=current_user.username)
 
 
 @app.route("/ViewItems")
 @login_required
 def viewItems():
-	return render_template("ViewItems.html", username=current_user.username)
+	return render_template("ViewItems.j2", username=current_user.username)
 
 
-@app.route("/AddItems")
+@app.route("/AddItems", methods=["GET", "POST"])
 @login_required
 def addItems():
-	ListsQuery: list = Functions.get_all_lists_by_user_id(current_user.id)
-	dictionary_from_list = {dictionary["ListID"]: dictionary["Name"] for dictionary in ListsQuery}
-	
-	return render_template("AddItems.html", username=current_user.username, DefaultList=dictionary_from_list, datetime=datetime.now())
+	if(request.method == "GET"):
+		ListsQuery: list = Functions.get_all_lists_by_user_id(current_user.id)
+		dictionary_from_list = {dictionary["ListID"]: dictionary["Name"] for dictionary in ListsQuery}
+		
+		return render_template("AddItems.j2", username=current_user.username, DefaultList=dictionary_from_list, datetime=datetime.now())
+
+	# if(request.method == "POST"):
+	# 	try:
+	# 		user = Functions.add_new_item(request)
+	# 		print(user)
+	# 		login_user(user, remember=True, duration=timedelta(days=1))
+	# 		return redirect("Home")
+	# 	except Exception as error:
+	# 		return render_template("CreateAccount.j2", error=error)
 
 
 @app.route("/MyPantry")
 @login_required
 def myPantry():
-	return render_template("MyPantry.html", username=current_user.username)
+	return render_template("MyPantry.j2", username=current_user.username)
 
 
 @app.route("/MyFridge")
 @login_required
 def myFridge():
-	return render_template("MyFridge.html", username=current_user.username)
+	return render_template("MyFridge.j2", username=current_user.username)
 
 
 @app.route("/MySpices")
 @login_required
 def mySpices():
-	return render_template("MySpices.html", username=current_user.username)
+	return render_template("MySpices.j2", username=current_user.username)
 
 
 @app.route("/MyTools")
 @login_required
 def myTools():
-	return render_template("MyTools.html", username=current_user.username)
+	return render_template("MyTools.j2", username=current_user.username)
 
 
 @app.route("/Recipes")
 @login_required
 def recipes():
-	return render_template("Recipes.html", username=current_user.username)
+	return render_template("Recipes.j2", username=current_user.username)
 
 
 
@@ -149,20 +157,20 @@ def recipes():
 @app.route("/About")
 @login_required
 def about():
-	return render_template("About.html", username=current_user.username)
+	return render_template("About.j2", username=current_user.username)
 
 
 @app.route("/MyAccount")
 @login_required
 def myAccount():
-	return render_template("AccountInfo.html", username=current_user.username)
+	return render_template("AccountInfo.j2", username=current_user.username)
 
 
 @app.route('/Logout', methods=['GET'])
 @login_required
 def logout():
 	logout_user()
-	return render_template("OpeningHome.html")
+	return render_template("OpeningHome.j2")
 
 
 
