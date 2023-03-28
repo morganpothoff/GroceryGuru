@@ -16,7 +16,8 @@ import werkzeug
 
 
 #import DB_Connections
-from database import create_user, create_ingredient
+import database
+from database import create_user, create_ingredient, create_home_ingredient, get_user_count
 
 
 app = Flask(__name__, static_url_path="/static")
@@ -53,14 +54,24 @@ def index():
 
 @app.route("/CreateUserTest")
 def create_user_test():
-	create_user()
-	return ""
+	user_count = get_user_count()
+	user_id = create_user(f"testuser{user_count}@test.com", "testUser", "TestPassword")
+	item_id = create_ingredient(f"Bananas{user_id}", "Dole", user_id)
+	home_ingredient_id = create_home_ingredient(5, '2023-03-23 00:00:00', '2023-03-30 00:00:00', item_id)
+	return render_template("CreateUserTest.j2", user_id=user_id, item_id=item_id, home_ingredient_id=home_ingredient_id)
+
+@app.route("/DisplayIngredients")
+def display_ingredients_test():
+	# get current user
+	user_id = 1		# fix later
+
+	# get user's home items
+	home_ingredients: list = database.Select.get_HomeIngredients_by_Persons_id(user_id)
+
+	# display!!!!!!
+	return render_template("ViewItems.j2", user_id=user_id, home_ingredients=home_ingredients)
 
 
-@app.route("/CreateIngredientTest")
-def create_ingredient_test():
-	create_ingredient()
-	return ""
 
 
 @app.route("/Login", methods=["GET", "POST"])

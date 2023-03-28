@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!-- Icon -->
+	</head>
+	
+	<body>
+		current user's id: {{ user_id }}
+		<br>
+		user's items are:
+		{% for home_ingredient, ingredient in home_ingredients %}
+			{{ ingredient.item_name }}
+			<br>
+		{% endfor %}
+	</body>
+</html>
