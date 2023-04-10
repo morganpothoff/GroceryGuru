@@ -1,0 +1,27 @@
+:root {
+	--background-color: #202124;
+	--background-accent-color: #404144;
+	--disabled-text-color: #666666;
+	--text-color: #DDDDDD;
+	--text-secondary-color: #BBBBBB;
+	--link-color: #E1C699;
+}
+
+
+html {
+	background-color: var(--background-color);
+	color: var(--text-color);
+	font-family: Helvetica;
+}
+
+
+body {
+	background-color: var(--background-color);
+	color: var(--text-color);
+	font-family: Helvetica;
+}
+
+
+div {
+	padding: 8px;
+}

@@ -24,8 +24,9 @@ Base.prepare(autoload_with=engine)
 # mapped classes are now created with names by default
 # matching that of the table name.
 Persons = Base.classes.Persons
+Lists = Base.classes.Lists
 Ingredients = Base.classes.Ingredients
-HomeIngredients = Base.classes.HomeIngredients
+ListIngredients = Base.classes.ListIngredients
 
 
 def get_user_count():
@@ -35,6 +36,7 @@ def get_user_count():
 
 def create_user(email, name, password):
 	test_person = Persons(email=email, name=name, password=password)
+	
 	with Session(engine) as session:
 		session.add(test_person)  # insert
 		session.commit()  # commit
@@ -42,8 +44,19 @@ def create_user(email, name, password):
 		return test_person.id
 
 
-def create_ingredient(item_name, brand_name, Persons_id):
-	test_ingredient = Ingredients(**{"item_name": item_name, "brand_name": brand_name, "Persons.id": Persons_id})
+def create_list(name, Persons_id):
+	test_list = Lists(**{"name": name, "Persons.id": Persons_id})
+
+	with Session(engine) as session:
+		session.add(test_list)  # insert
+		session.commit()  # commit
+		session.refresh(test_list)
+		return test_list.id
+
+
+def create_ingredient(name, Persons_id):
+	test_ingredient = Ingredients(**{"name": name, "Persons.id": Persons_id})
+	
 	with Session(engine) as session:
 		session.add(test_ingredient)  # insert
 		session.commit()  # commit
@@ -51,11 +64,12 @@ def create_ingredient(item_name, brand_name, Persons_id):
 		return test_ingredient.id
 
 
-def create_home_ingredient(count, date_purchased, date_expires, Ingredient_id):
-	test_home_ingredient = HomeIngredients(**{"count": count, "date_purchased": date_purchased,
-				"date_expires": date_expires, "Ingredients.id": Ingredient_id})
+def create_list_ingredient(quantity, date_added, Ingredients_id, Lists_id):
+	test_list_ingredient = ListIngredients(**{"quantity": quantity, "date_added": date_added,
+				"Ingredients.id": Ingredients_id, "Lists.id": Lists_id})
+	
 	with Session(engine) as session:
-		session.add(test_home_ingredient)  # insert
+		session.add(test_list_ingredient)  # insert
 		session.commit()  # commit
-		session.refresh(test_home_ingredient)
-		return test_home_ingredient.id
+		session.refresh(test_list_ingredient)
+		return test_list_ingredient.id

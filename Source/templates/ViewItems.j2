@@ -2,14 +2,17 @@
 <html>
 	<head>
 		<!-- Icon -->
+		<link rel="stylesheet" href="/static/css/Style.css">
 	</head>
 	
 	<body>
-		current user's id: {{ user_id }}
+		<h1>View User's List Items</h1>
+
+		Current user's id: {{ user_id }}
 		<br>
-		user's items are:
-		{% for home_ingredient, ingredient in home_ingredients %}
-			{{ ingredient.item_name }}
+		Current user's items are:
+		{% for list_ingredient, ingredient in list_ingredients %}
+			{{ ingredient.name }}
 			<br>
 		{% endfor %}
 	</body>

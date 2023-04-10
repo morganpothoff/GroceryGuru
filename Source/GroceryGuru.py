@@ -17,7 +17,7 @@ import werkzeug
 
 #import DB_Connections
 import database
-from database import create_user, create_ingredient, create_home_ingredient, get_user_count
+from database import create_user, create_list, create_ingredient, create_list_ingredient, get_user_count
 
 
 app = Flask(__name__, static_url_path="/static")
@@ -56,20 +56,30 @@ def index():
 def create_user_test():
 	user_count = get_user_count()
 	user_id = create_user(f"testuser{user_count}@test.com", "testUser", "TestPassword")
-	item_id = create_ingredient(f"Bananas{user_id}", "Dole", user_id)
-	home_ingredient_id = create_home_ingredient(5, '2023-03-23 00:00:00', '2023-03-30 00:00:00', item_id)
-	return render_template("CreateUserTest.j2", user_id=user_id, item_id=item_id, home_ingredient_id=home_ingredient_id)
+	list_id = create_list(f"shopping", user_id)
+	item_id1 = create_ingredient(f"Bananas{user_id}", user_id)
+	list_ingredient_id1 = create_list_ingredient(5, '2023-03-23 00:00:00', item_id1, list_id)
+	item_id2 = create_ingredient(f"Oranges{user_id}", user_id)
+	list_ingredient_id2 = create_list_ingredient(5, '2023-03-23 00:00:00', item_id2, list_id)
+	return render_template("CreateUserTest.j2", user_id=user_id, item_id=item_id1, list_ingredient_id=list_ingredient_id1)
 
-@app.route("/DisplayIngredients")
-def display_ingredients_test():
-	# get current user
-	user_id = 1		# fix later
 
-	# get user's home items
-	home_ingredients: list = database.Select.get_HomeIngredients_by_Persons_id(user_id)
+@app.route("/DisplayIngredients/<int:user_id>")
+def display_ingredients_test(user_id: int):
+	# Get current user
+	# user_id = 20		# fix later
 
-	# display!!!!!!
-	return render_template("ViewItems.j2", user_id=user_id, home_ingredients=home_ingredients)
+	# Get user's home items
+	list_ingredients: list = database.Select.get_ListIngredients_by_Persons_id(user_id)
+	print(list_ingredients)
+	# Display ingredients
+	return render_template("ViewItems.j2", user_id=user_id, list_ingredients=list_ingredients)
+
+
+@app.route("/AddListItem/<int:user_id>")
+def add_list_item(user_id: int):
+	return render_template("AddListItem.j2", user_id=user_id)
+
 
 
 
