@@ -52,6 +52,11 @@ def index():
 	return render_template("Index.j2")
 
 
+@app.route("/CreateUser")
+def create_user():
+	return render_template("CreateUser.j2")
+
+
 @app.route("/CreateUserTest")
 def create_user_test():
 	user_count = get_user_count()
@@ -78,6 +83,7 @@ def display_ingredients_test(user_id: int):
 
 @app.route("/AddListItem/<int:user_id>")
 def add_list_item(user_id: int):
+
 	return render_template("AddListItem.j2", user_id=user_id)
 
 
