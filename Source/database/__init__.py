@@ -73,3 +73,12 @@ def create_list_ingredient(quantity, date_added, Ingredients_id, Lists_id):
 		session.commit()  # commit
 		session.refresh(test_list_ingredient)
 		return test_list_ingredient.id
+
+
+def get_lists_by_user(user_id: int):
+	with Session(engine) as session:
+		statement = select(Lists).where(Persons.id == user_id)
+		return session.scalars(statement)
+
+
+

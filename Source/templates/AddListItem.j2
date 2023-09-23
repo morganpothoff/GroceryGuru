@@ -8,11 +8,25 @@
 	<body>
 		<h1>Add Item to List</h1>
 
-		<form action="/action_page.php">
+		<form method="POST">
 			<label for="list_name">List Name:</label><br>
-			<input type="text" id="list_name" name="list_name" value="Shopping List"><br>
+			<select
+			  id="list_name"
+			  name="list_name"
+			>
+				{% for list in lists %}
+					<option
+					  value="{{ list.id }}"
+					>
+						{{ list.name }}
+					</option>
+				{% endfor %}
+			</select>
+
+			<br><br>
+
 			<label for="item_name">Item Name:</label><br>
-			<input type="text" id="item_name" name="item_name" value="Bananas"><br><br>
+			<input type="text" id="item_name" name="item_name" placeholder="Bananas"><br><br>
 			<input type="submit" value="Submit">
 		</form> 		
 	</body>

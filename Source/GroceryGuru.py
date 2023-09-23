@@ -6,6 +6,7 @@ from flask import *
 from flask_login import (login_user)
 from flask_login import LoginManager
 from flask_login import login_user
+from flask_login import current_user, login_required
 from datetime import datetime
 import json
 import os
@@ -34,8 +35,6 @@ def load_user(user_id):
 	try:
 		active_user = Functions.get_user_by_id(user_id)
 	except Exception as error:
-		traceback.print_exc()							###########
-		print(error)									###########
 		return None
 
 	return active_user
@@ -102,10 +101,17 @@ def create_user_test():
 	return render_template("CreateUserTest.j2", user_id=user_id, item_id=item_id1, list_ingredient_id=list_ingredient_id1)
 
 
-@app.route("/DisplayIngredients/<int:user_id>")
-def display_ingredients_test(user_id: int):
+
+
+
+# ————————————————————————————————— Pre Login ———————————————————————————————— #
+
+@app.route("/DisplayIngredients")
+@login_required
+def display_ingredients_test():
 	# Get current user
-	# user_id = 20		# fix later
+	print(current_user)								#############
+	user_id = int(current_user.get_id())
 
 	# Get user's home items
 	list_ingredients: list = database.Select.get_ListIngredients_by_Persons_id(user_id)
@@ -114,10 +120,33 @@ def display_ingredients_test(user_id: int):
 	return render_template("ViewItems.j2", user_id=user_id, list_ingredients=list_ingredients)
 
 
-@app.route("/AddListItem/<int:user_id>")
-def add_list_item(user_id: int):
+@app.route("/AddListItem", methods=["GET", "POST"])
+@login_required
+def add_list_item():
+	# Get current user
+	user_id = int(current_user.get_id())
 
-	return render_template("AddListItem.j2", user_id=user_id)
+	if request.method == "POST":
+		try:
+			list_name = request.form.get("list_name")
+			item_name = request.form.get("item_name")
+
+			# If ingredient does not exist
+				# Create ingredient
+			# Else
+				# Get ingredient's ID
+			# list_ingredient_id1 = create_list_ingredient(5, '2023-03-23 00:00:00', item_name, list_name)
+
+		except Exception as error:
+			traceback.print_exc()							###########
+			print(error)									###########
+			return render_template("AddListItem.j2", error=error)
+
+	print(list(database.get_lists_by_user(user_id)))
+	return render_template("AddListItem.j2", lists=[])
+
+
+
 
 
 

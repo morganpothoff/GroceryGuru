@@ -17,6 +17,13 @@ CREATE TABLE "Lists" (
 );
 
 
+DROP TABLE IF EXISTS "DefaultLists" CASCADE;
+CREATE TABLE "DefaultLists" (
+	"id" SERIAL NOT NULL PRIMARY KEY,
+	"name" VARCHAR(255) NOT NULL UNIQUE
+);
+
+
 DROP TABLE IF EXISTS "StorageTypes" CASCADE;
 CREATE TABLE "StorageTypes" (
 	"id" SERIAL NOT NULL PRIMARY KEY,
@@ -79,3 +86,21 @@ DO (
 	SET "is_deleted" = TRUE
 	WHERE "Ingredients.id" = NEW."id";
 );
+
+-- —————————————————————————————————————————————————————————————————————————————————————————————————————————————————— --
+
+DROP FUNCTION IF EXISTS add_default_lists() CASCADE;
+CREATE FUNCTION add_default_lists() RETURNS TRIGGER AS $$
+BEGIN
+	INSERT INTO "Lists" ("name", "Persons.id")
+	SELECT "DefaultLists"."name", NEW."id"
+	FROM "DefaultLists";
+END;
+$$ LANGUAGE 'plpgsql' SECURITY DEFINER;
+
+
+CREATE TRIGGER add_default_lists
+  AFTER INSERT ON "Persons"
+  FOR EACH ROW EXECUTE PROCEDURE add_default_lists();
+
+
