@@ -3,13 +3,14 @@
 
 
 from flask import *
-from flask_login import (current_user, LoginManager, login_user, logout_user, login_required)
+from flask_login import (login_user)
 from flask_login import LoginManager
 from flask_login import login_user
 from datetime import datetime
 import json
 import os
 import psycopg2
+import Functions
 from datetime import timedelta
 import traceback
 import werkzeug
@@ -23,21 +24,21 @@ from database import create_user, create_list, create_ingredient, create_list_in
 app = Flask(__name__, static_url_path="/static")
 app.secret_key = os.getenv("SECRET_KEY")
 
-# login_manager = LoginManager()
-# login_manager.init_app(app)
-# login_manager.login_view = "login"
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
 
 
-# @login_manager.user_loader
-# def load_user(user_id):
-# 	try:
-# 		active_user = Functions.get_user_by_id(user_id)
-# 	except:
-# 		traceback.print_exc()							###########
-# 		print(error)										###########
-# 		return None
+@login_manager.user_loader
+def load_user(user_id):
+	try:
+		active_user = Functions.get_user_by_id(user_id)
+	except Exception as error:
+		traceback.print_exc()							###########
+		print(error)									###########
+		return None
 
-# 	return active_user
+	return active_user
 
 
 # @app.before_request
@@ -47,14 +48,46 @@ app.secret_key = os.getenv("SECRET_KEY")
 
 
 # ————————————————————————————————— Pre Login ———————————————————————————————— #
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
+	#TODO: If not logged in, redirect user to /login
 	return render_template("Index.j2")
 
 
-@app.route("/CreateUser")
-def create_user():
-	return render_template("CreateUser.j2")
+@app.route("/Success")
+def success():
+	return render_template("Success.j2")
+
+
+@app.route("/Login", methods=["GET", "POST"])
+def login():
+	if request.method == "POST":
+		try:
+			user = Functions.login_user(request)
+			login_user(user, remember=True, duration=timedelta(days=1))
+			return redirect("/Success")
+		except Exception as error:
+			traceback.print_exc()							###########
+			print(error)									###########
+			return render_template("Index.j2", error=error)
+	else:
+		return render_template("Index.j2")
+
+
+@app.route("/CreateAccount", methods=["GET", "POST"])
+def createAccount():
+	if request.method == "POST":
+		try:
+			user = Functions.add_new_user(request)
+			print(user)
+			login_user(user, remember=True, duration=timedelta(days=1))
+			return redirect("/Success")
+		except Exception as error:
+			traceback.print_exc()							###########
+			print(error)									###########
+			return render_template("CreateAccount.j2", error=error)
+	else:
+		return render_template("CreateAccount.j2")
 
 
 @app.route("/CreateUserTest")
@@ -90,36 +123,9 @@ def add_list_item(user_id: int):
 
 
 
-@app.route("/Login", methods=["GET", "POST"])
-def login():
-	if request.method == "POST":
-		try:
-			user = Functions.login_user(request)
-			login_user(user, remember=True, duration=timedelta(days=1))
-			return redirect("Home")
-		except Exception as error:
-			traceback.print_exc()							###########
-			print(error)										###########
-			return render_template("Login.html", error=error)
-	else:
-		return render_template("Login.html")
 
 
 
-@app.route("/CreateAccount", methods=["GET", "POST"])
-def createAccount():
-	if request.method == "POST":
-		try:
-			user = Functions.add_new_user(request)
-			print(user)
-			login_user(user, remember=True, duration=timedelta(days=1))
-			return redirect("Home")
-		except Exception as error:
-			traceback.print_exc()							###########
-			print(error)										###########
-			return render_template("CreateAccount.html", error=error)
-	else:
-		return render_template("CreateAccount.html")
 
 
 

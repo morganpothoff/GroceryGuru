@@ -8,18 +8,20 @@
 	<body>
 		<h1>Grocery Guru</h1>
 
-		<h2>Please Login:</h2>
-		<form>
-			<label for="uname">Username: </label>
-			<br>
-			<input type="text" id="uname" name="uname">
-			<br><br>
-			<label for="pass">Password: </label><br>
-			<input type="text" id="pass" name="pass">
-			<br><br>
-			<input type="submit" id="submit" value="Submit">
-			<input type="submit" id="create" value="Create User">
-			<input type="submit" id="test" value="-TEST-">
+		<h2>Please Login</h2>
+		<form name="login" method="POST">
+			<div class="container">
+				<label for="email"><b>Email</b></label>
+				<input type="text" placeholder="Enter Email" name="email" value="{{ request.form.email }}" required>
+				<br><br>
+
+				<label for="pass"><b>Password</b></label>
+				<input type="password" placeholder="Enter Password" name="pass" value="{{ request.form.pass }}" required>
+				<br><br>
+
+				<button type="submit">Login</button>
+				<span><i>Don't have an account? </i><a href="/CreateAccount">Create one!</a></span>
+			</div>
 		</form>
 	</body>
 </html>
