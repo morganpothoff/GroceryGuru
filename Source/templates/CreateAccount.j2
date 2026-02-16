@@ -1,32 +1,35 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<!-- Icon -->
-		<link rel="stylesheet" href="/static/css/Style.css">
-	</head>
+{% extends "Base.j2" %}
 
-	<body>
+{% block title %}Create account — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
 		<h1>Grocery Guru</h1>
+		<h2>Create your account</h2>
 
-		<h2>New User:</h2>
+		{% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
 		<form method="POST">
-			<label for="email"><b>Email</b></label>
-			<input type="text" placeholder="Enter Email" name="email" value="{{ request.form.email }}" required>
-			<br><br>
-
-			<label for="name"><b>What should we call you?</b></label>
-			<input type="text" placeholder="Gary" name="name" value="{{ request.form.name }}" required>
-			<br><br>
-
-			<label for="pass"><b>Password</b></label>
-			<input type="password" placeholder="Enter Password" name="pass" value="{{ request.form.pass }}" required>
-			<br><br>
-
-			<label for="confirmPass"><b>Confirm Password</b></label>
-			<input type="password" placeholder="Confirm Password" name="confirmPass" value="{{ request.form.confirmPass }}" required>
-			<br><br>
-
-			<button type="submit">Submit</button>
+			<div class="form-group">
+				<label for="email">Email</label>
+				<input type="email" id="email" placeholder="Enter your email" name="email" value="{{ request.form.email }}" required>
+			</div>
+			<div class="form-group">
+				<label for="name">What should we call you?</label>
+				<input type="text" id="name" placeholder="e.g. Alex" name="name" value="{{ request.form.name }}" required>
+			</div>
+			<div class="form-group">
+				<label for="pass">Password</label>
+				<input type="password" id="pass" placeholder="Choose a password" name="pass" value="{{ request.form.pass }}" required>
+			</div>
+			<div class="form-group">
+				<label for="confirmPass">Confirm password</label>
+				<input type="password" id="confirmPass" placeholder="Confirm your password" name="confirmPass" value="{{ request.form.confirmPass }}" required>
+			</div>
+			<button type="submit" class="btn btn-primary">Create account</button>
+			<p class="text-muted" style="margin-top: 1rem;">
+				Already have an account? <a href="/Login">Log in</a>
+			</p>
 		</form>
-	</body>
-</html>
+	</div>
+{% endblock %}

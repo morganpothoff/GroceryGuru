@@ -1,20 +1,27 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<link rel="stylesheet" href="/static/css/Style.css">
-	</head>
-	<body>
-		<h1>Add Item to List</h1>
-		{% if error %}<p style="color: red;">{{ error }}</p>{% endif %}
+{% extends "Base.j2" %}
+
+{% block title %}Add item — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>Add item to list</h1>
+
+		{% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
 		<form method="POST" action="/AddListItem">
-			<label for="list_name">List Name:</label><br>
-			<input type="text" id="list_name" name="list_name" value="{{ request.form.list_name or 'Shopping List' }}" required><br>
-			<label for="item_name">Item Name:</label><br>
-			<input type="text" id="item_name" name="item_name" value="{{ request.form.item_name or '' }}" required><br>
-			<label for="quantity">Quantity:</label><br>
-			<input type="number" id="quantity" name="quantity" value="{{ request.form.quantity or '1' }}" min="1"><br><br>
-			<button type="submit">Add Item</button>
+			<div class="form-group">
+				<label for="list_name">List name</label>
+				<input type="text" id="list_name" name="list_name" value="{{ request.form.list_name or 'Shopping List' }}" required>
+			</div>
+			<div class="form-group">
+				<label for="item_name">Item name</label>
+				<input type="text" id="item_name" name="item_name" value="{{ request.form.item_name or '' }}" placeholder="e.g. Milk, Bananas" required>
+			</div>
+			<div class="form-group">
+				<label for="quantity">Quantity</label>
+				<input type="number" id="quantity" name="quantity" value="{{ request.form.quantity or '1' }}" min="1" max="999">
+			</div>
+			<button type="submit" class="btn btn-primary">Add item</button>
 		</form>
-		<p><a href="/">Home</a> | <a href="/DisplayIngredients/{{ user_id }}">View My Items</a> | <a href="/Logout">Logout</a></p>
-	</body>
-</html>
+	</div>
+{% endblock %}

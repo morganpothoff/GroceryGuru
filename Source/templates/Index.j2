@@ -1,28 +1,27 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<!-- Icon -->
-		<link rel="stylesheet" href="/static/css/Style.css">
-	</head>
-	
-	<body>
+{% extends "Base.j2" %}
+
+{% block title %}Login — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
 		<h1>Grocery Guru</h1>
+		<h2>Please log in</h2>
 
-		<h2>Please Login</h2>
-		{% if error %}<p style="color: red;">{{ error }}</p>{% endif %}
+		{% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
 		<form name="login" method="POST" action="/Login">
-			<div class="container">
-				<label for="email"><b>Email</b></label>
-				<input type="text" placeholder="Enter Email" name="email" value="{{ request.form.email }}" required>
-				<br><br>
-
-				<label for="pass"><b>Password</b></label>
-				<input type="password" placeholder="Enter Password" name="pass" value="{{ request.form.pass }}" required>
-				<br><br>
-
-				<button type="submit">Login</button>
-				<span><i>Don't have an account? </i><a href="/CreateAccount">Create one!</a></span>
+			<div class="form-group">
+				<label for="email">Email</label>
+				<input type="email" id="email" placeholder="Enter your email" name="email" value="{{ request.form.email }}" required>
 			</div>
+			<div class="form-group">
+				<label for="pass">Password</label>
+				<input type="password" id="pass" placeholder="Enter your password" name="pass" value="{{ request.form.pass }}" required>
+			</div>
+			<button type="submit" class="btn btn-primary">Log in</button>
+			<p class="text-muted" style="margin-top: 1rem;">
+				Don't have an account? <a href="/CreateAccount">Create one</a>
+			</p>
 		</form>
-	</body>
-</html>
+	</div>
+{% endblock %}

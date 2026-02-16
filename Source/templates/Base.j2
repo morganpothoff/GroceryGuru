@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>{% block title %}Grocery Guru{% endblock %}</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/static/css/Style.css">
+</head>
+<body>
+	<header class="site-header">
+		<div class="header-inner">
+			<a href="/" class="logo">
+				<span class="logo-icon">🥬</span>
+				<span class="logo-text">Grocery Guru</span>
+			</a>
+			<nav class="main-nav">
+				{% if current_user.is_authenticated %}
+					<a href="/">Home</a>
+					<a href="/DisplayIngredients/{{ current_user.id }}">View items</a>
+					<a href="/AddListItem">Add items</a>
+				{% endif %}
+			</nav>
+			<div class="header-actions">
+				{% block header_actions %}{% endblock %}
+				{% if current_user.is_authenticated %}
+					<a href="/Logout" class="btn btn-primary">Log out</a>
+				{% endif %}
+				<button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+					<span class="theme-icon sun">☀️</span>
+					<span class="theme-icon moon">🌙</span>
+				</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="main-content">
+		{% block content %}{% endblock %}
+	</main>
+
+	<footer class="site-footer">
+		<div class="footer-inner">
+			<nav class="footer-nav">
+				<a href="/FAQ">FAQ</a>
+				<a href="/Privacy">Privacy</a>
+				<a href="/Terms">Terms</a>
+				<a href="/Contact">Contact</a>
+			</nav>
+			<p class="footer-copyright">&copy; {{ current_year }} Grocery Guru. All rights reserved.</p>
+		</div>
+	</footer>
+
+	{% block scripts %}
+	<script>
+		(function() {
+			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			const stored = localStorage.getItem('grocery-guru-theme');
+			const theme = stored || (prefersDark ? 'dark' : 'light');
+			document.documentElement.setAttribute('data-theme', theme);
+
+			document.getElementById('themeToggle')?.addEventListener('click', function() {
+				const current = document.documentElement.getAttribute('data-theme');
+				const next = current === 'dark' ? 'light' : 'dark';
+				document.documentElement.setAttribute('data-theme', next);
+				localStorage.setItem('grocery-guru-theme', next);
+			});
+		})();
+	</script>
+	{% endblock %}
+</body>
+</html>

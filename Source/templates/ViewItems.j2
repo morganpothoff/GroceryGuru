@@ -1,18 +1,20 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<!-- Icon -->
-		<link rel="stylesheet" href="/static/css/Style.css">
-	</head>
-	
-	<body>
-		<h1>View User's List Items</h1>
+{% extends "Base.j2" %}
 
-		Current user's items:
-		{% for list_ingredient, ingredient in list_ingredients %}
-			{{ ingredient.name }}
-			<br>
-		{% endfor %}
-		<p><a href="/">Home</a> | <a href="/AddListItem">Add Item</a> | <a href="/Logout">Logout</a></p>
-	</body>
-</html>
+{% block title %}My items — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>My grocery list</h1>
+		<h2>Current items</h2>
+
+		{% if list_ingredients %}
+			<ul class="item-list">
+				{% for list_ingredient, ingredient in list_ingredients %}
+					<li>{{ ingredient.name }}</li>
+				{% endfor %}
+			</ul>
+		{% else %}
+			<p class="text-muted">No items yet. <a href="/AddListItem">Add your first item</a>.</p>
+		{% endif %}
+	</div>
+{% endblock %}

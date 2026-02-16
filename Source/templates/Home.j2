@@ -1,13 +1,16 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<link rel="stylesheet" href="/static/css/Style.css">
-	</head>
-	<body>
+{% extends "Base.j2" %}
+
+{% block title %}Home — Grocery Guru{% endblock %}
+
+
+{% block content %}
+	<div class="card">
 		<h1>Grocery Guru</h1>
-		<h2>Welcome!</h2>
-		<p><a href="/AddListItem">Add Item to List</a></p>
-		<p><a href="/DisplayIngredients/{{ current_user.id }}">View My Items</a></p>
-		<p><a href="/Logout">Logout</a></p>
-	</body>
-</html>
+		<h2>Welcome back!</h2>
+
+		<div class="action-buttons">
+			<a href="/AddListItem" class="btn btn-primary">Add item to list</a>
+			<a href="/DisplayIngredients/{{ current_user.id }}" class="btn btn-primary">View my items</a>
+		</div>
+	</div>
+{% endblock %}
