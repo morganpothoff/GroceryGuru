@@ -4,7 +4,7 @@ CREATE TABLE "Persons" (
 	"id" SERIAL NOT NULL PRIMARY KEY,
 	"email" VARCHAR(255) UNIQUE,
 	"name" VARCHAR(255),
-	"password" VARCHAR(255)  -- TODO: Don't store as plain text
+	"password" VARCHAR(255)  -- pbkdf2:sha256 hash
 );
 
 

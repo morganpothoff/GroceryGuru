@@ -2,50 +2,47 @@
 # -*- coding: utf-8 -*-
 
 from User import User
+from werkzeug.security import generate_password_hash, check_password_hash
 
 import os
-import psycopg2
-import psycopg2.extras
-import werkzeug
+import sqlite3
 
 
 # ————————————————————————————————————————————————————— Database ————————————————————————————————————————————————————— #
 
-def close(*connections: list) -> None:
-	"""
-	SUMMARY: Closes all passed connections.
-	DETAILS: Iterates through connections, calling the close method on each connection.
-	"""
-	
-	for connection in connections:
-		connection.close()
+def _get_db_path():
+	"""Get SQLite database path from env or default."""
+	path = os.getenv("GROCERY_GURU_DB_PATH")
+	if path:
+		return path
+	from pathlib import Path
+	project_root = Path(__file__).resolve().parent.parent
+	return str(project_root / "Database" / "grocery_guru.db")
+
+
+def close(*connections) -> None:
+	"""Closes all passed connections/cursors."""
+	for obj in connections:
+		obj.close()
 
 
 def connect(function: callable) -> callable:
 	"""
-	SUMMARY: Wraps functions with function to create cursor for DB and close connections when done it.
-	DETAILS: Gets the environment variable for the DB's connection. Connects to the Postgresql DB. Creates a cursor for
-	         the connection. Passes it to the callback. Closes connection to DB.
-	RETURNS: The wrapped function with the cursor for the established connection.
+	Wraps functions to create a SQLite connection, pass a dict cursor, and close when done.
 	"""
-	
-	def inner(*args: list, **kwargs: dict) -> callable:
-		DB_USER = os.getenv("GROCERY_GURU_DB_USER")
-		DB_PASSWORD = os.getenv("GROCERY_GURU_DB_PASSWORD")
-		assert(DB_USER is not None), "'DB_USER' not set"
-		assert(DB_PASSWORD is not None), "'DB_PASSWORD' not set"
-		connection_string = f"host=localhost dbname=GroceryGuru user={DB_USER} password={DB_PASSWORD}"
 
-		connection = psycopg2.connect(connection_string)
-		connection.autocommit = True  # Automatically commit changes to DB
-		cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+	def inner(*args, **kwargs):
+		connection = sqlite3.connect(_get_db_path())
+		connection.row_factory = sqlite3.Row  # dict-like access via row["col"]
+		cursor = connection.cursor()
 
 		try:
-			function_result = function(cursor, *args, **kwargs)
+			result = function(cursor, *args, **kwargs)
+			connection.commit()
 			close(cursor, connection)
-			return function_result
-
+			return result
 		except Exception as error:
+			connection.rollback()
 			close(cursor, connection)
 			raise error
 
@@ -53,103 +50,79 @@ def connect(function: callable) -> callable:
 	return inner
 
 
-
 # ————————————————————————————————————————————————— Users/Logging In ————————————————————————————————————————————————— #
 
 @connect
-def Persons_email_exists(cursor: psycopg2.extensions.cursor, email: str) -> bool:
-	"""
-	SUMMARY: Checks whether a Persons's email exists.
-	PARAMS:  The email to check.
-	DETAILS: Makes a query to the DB. Evaluates whether the email exists.
-	RETURNS: True is the email is found, false otherwise.
-	"""
-	
-	cursor.execute("""SELECT * FROM "Persons" WHERE "email" = %s;""", (email,))
-	return cursor.rowcount > 0
+def Persons_email_exists(cursor, email: str) -> bool:
+	"""Checks whether a Persons's email exists."""
+	cursor.execute('SELECT 1 FROM "Persons" WHERE "email" = ?;', (email,))
+	return cursor.fetchone() is not None
 
 
 @connect
-def get_user_by_id(cursor: psycopg2.extensions.cursor, user_id):
-	query = \
-	"""
-	SELECT *
-	FROM "Persons"
-	WHERE "id" = %s;
-	"""
+def get_user_by_id(cursor, user_id):
+	query = 'SELECT * FROM "Persons" WHERE "id" = ?;'
 	cursor.execute(query, (user_id,))
 	user_info = cursor.fetchone()
 
-	if(user_info is None):
-		raise Exception(f"This account does not exist.")
+	if user_info is None:
+		raise Exception("This account does not exist.")
 
-	current_user = User(user_info["id"], user_info["email"], user_info["name"], user_info["password"])
+	user_info = dict(user_info)
+	current_user = User(
+		user_info["id"], user_info["email"], user_info["name"], user_info["password"]
+	)
 	return current_user
 
 
 @connect
-def add_new_user(cursor: psycopg2.extensions.cursor, request: werkzeug.local.LocalProxy):
-	"""
-	SUMMARY: Attempts to add a new user to the database.
-	PARAMS:  The request to be handled.
-	DETAILS: Makes a query to the DB. Evaluates whether the email/username exists. Inserts new user.
-	RETURNS: Exception raised, dict user_info otherwise.
-	"""
-	
-	email: str = request.form["email"]
-	if(Persons_email_exists(email)):
+def add_new_user(cursor, request):
+	"""Attempts to add a new user to the database."""
+	email = request.form["email"]
+	if Persons_email_exists(email):
 		raise Exception(f"There is already an account for email '{email}'.")
 
-	if(request.form["pass"] != request.form["confirmPass"]):
+	if request.form["pass"] != request.form["confirmPass"]:
 		raise Exception("The password and confirmed password do not match. Please try again.")
 
-	query = \
-	"""
-	INSERT INTO "Persons" ("email", "name", "password")
-	  VALUES (%s, %s, %s)
-	  RETURNING *;
-	"""
-	cursor.execute(query, (email, request.form["name"], request.form["pass"]))
-	print(cursor.statusmessage)
+	password_hash = generate_password_hash(request.form["pass"], method="pbkdf2:sha256")
+	query = '''
+		INSERT INTO "Persons" ("email", "name", "password") VALUES (?, ?, ?);
+	'''
+	cursor.execute(query, (email, request.form["name"], password_hash))
+	user_id = cursor.lastrowid
 
-	user_info: dict = cursor.fetchone()
-	if(not user_info):
+	if not user_id:
 		raise Exception("DB Error while attempting to add new user to DB")
 
-	current_user = User(user_info["id"], user_info["email"], user_info["name"], user_info["password"])
+	cursor.execute('SELECT * FROM "Persons" WHERE "id" = ?;', (user_id,))
+	user_info = dict(cursor.fetchone())
+	current_user = User(
+		user_info["id"], user_info["email"], user_info["name"], user_info["password"]
+	)
 	return current_user
+
+
+def _verify_password(stored_hash: str, password: str) -> bool:
+	"""Verify a password against a stored hash."""
+	return check_password_hash(stored_hash, password)
 
 
 @connect
-def login_user(cursor: psycopg2.extensions.cursor, request: werkzeug.local.LocalProxy):
-	"""
-	SUMMARY: Attempts to login user to the website.
-	PARAMS:  The request to be handled.
-	DETAILS: Makes a query to the DB. Raises exception if no user found or username and password do not match, 
-	         otherwise logs user into website.
-	RETURNS: Exception raised, dict user_info otherwise.
-	"""
-	
-	query = \
-	"""
-	SELECT *
-	FROM "Persons"
-	WHERE "email" = %s;
-	"""
+def login_user(cursor, request):
+	"""Attempts to login user to the website."""
+	query = 'SELECT * FROM "Persons" WHERE "email" = ?;'
 	cursor.execute(query, (request.form["email"],))
 	user_info = cursor.fetchone()
-	print(user_info)
 
-	if(user_info is None):
-		raise Exception(f"This email does not exist. Please try again.")
+	if user_info is None:
+		raise Exception("This email does not exist. Please try again.")
 
-	if((user_info := dict(user_info))["password"] != request.form["pass"]):
-		raise Exception(f"The entered password does not match the email. Please try again.")
-	
-	current_user = User(user_info["id"], user_info["email"], user_info["name"], user_info["password"])
+	user_info = dict(user_info)
+	if not _verify_password(user_info["password"], request.form["pass"]):
+		raise Exception("The entered password does not match the email. Please try again.")
+
+	current_user = User(
+		user_info["id"], user_info["email"], user_info["name"], user_info["password"]
+	)
 	return current_user
-
-
-
-
-
