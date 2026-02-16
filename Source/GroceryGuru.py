@@ -98,6 +98,11 @@ def createAccount():
 		return render_template("CreateAccount.j2")
 
 
+@app.route("/Profile", methods=["GET"])
+def profile():
+	return render_template("Profile.j2")
+
+
 @app.route("/FAQ")
 def faq():
 	return render_template("FAQ.j2")

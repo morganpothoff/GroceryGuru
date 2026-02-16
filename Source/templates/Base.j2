@@ -8,6 +8,19 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="/static/css/Style.css">
+	<script>
+		(function(){
+			var k='grocery-guru-theme';
+			var s=localStorage.getItem(k);
+			var d=window.matchMedia('(prefers-color-scheme: dark)').matches;
+			document.documentElement.setAttribute('data-theme',s||(d?'dark':'light'));
+			window.groceryGuruToggleTheme=function(){
+				var h=document.documentElement,c=h.getAttribute('data-theme')||'light',n=c==='dark'?'light':'dark';
+				h.setAttribute('data-theme',n);
+				localStorage.setItem(k,n);
+			};
+		})();
+	</script>
 </head>
 <body>
 	<header class="site-header">
@@ -25,13 +38,21 @@
 			</nav>
 			<div class="header-actions">
 				{% block header_actions %}{% endblock %}
+				<a href="/Profile" class="header-icon-btn" aria-label="Profile" title="Profile">
+					<svg class="header-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+						<circle cx="12" cy="7" r="4"/>
+					</svg>
+				</a>
 				{% if current_user.is_authenticated %}
-					<a href="/Logout" class="btn btn-primary">Log out</a>
+					<a href="/Logout" class="header-icon-btn" aria-label="Log out" title="Log out">
+						<svg class="header-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+							<polyline points="16 17 21 12 16 7"/>
+							<line x1="21" y1="12" x2="9" y2="12"/>
+						</svg>
+					</a>
 				{% endif %}
-				<button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
-					<span class="theme-icon sun">☀️</span>
-					<span class="theme-icon moon">🌙</span>
-				</button>
 			</div>
 		</div>
 	</header>
@@ -53,21 +74,7 @@
 	</footer>
 
 	{% block scripts %}
-	<script>
-		(function() {
-			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-			const stored = localStorage.getItem('grocery-guru-theme');
-			const theme = stored || (prefersDark ? 'dark' : 'light');
-			document.documentElement.setAttribute('data-theme', theme);
-
-			document.getElementById('themeToggle')?.addEventListener('click', function() {
-				const current = document.documentElement.getAttribute('data-theme');
-				const next = current === 'dark' ? 'light' : 'dark';
-				document.documentElement.setAttribute('data-theme', next);
-				localStorage.setItem('grocery-guru-theme', next);
-			});
-		})();
-	</script>
+	<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 	{% endblock %}
 </body>
 </html>

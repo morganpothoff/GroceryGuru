@@ -27,7 +27,7 @@
 }
 
 /* --- Dark theme (dark blue) --- */
-[data-theme="dark"] {
+html[data-theme="dark"] {
 	--bg-primary: #0d1b2a;
 	--bg-secondary: #1b263b;
 	--bg-elevated: #263548;
@@ -143,13 +143,38 @@ body {
 	color: white;
 }
 
-/* --- Theme toggle --- */
-.theme-toggle {
+/* --- Header icon buttons --- */
+.header-icon-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
+	border-radius: 8px;
+	color: var(--text-primary);
+	transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.header-icon-btn:hover {
+	background: var(--accent-bg);
+	color: var(--accent);
+	box-shadow: 0 2px 8px var(--shadow);
+}
+
+.header-icon-svg {
+	width: 20px;
+	height: 20px;
+}
+
+/* --- Theme toggle --- */
+.theme-toggle {
+	background: var(--bg-secondary);
+	border: 1px solid var(--border);
 	border-radius: 50%;
-	width: 42px;
-	height: 42px;
+	width: 38px;
+	height: 38px;
 	cursor: pointer;
 	display: flex;
 	align-items: center;
@@ -162,8 +187,20 @@ body {
 	box-shadow: 0 4px 12px var(--shadow);
 }
 
+.theme-toggle-large {
+	width: 56px;
+	height: 56px;
+	font-size: 1.5rem;
+	margin-top: 0.5rem;
+}
+
 .theme-icon {
 	font-size: 1.2rem;
+	pointer-events: none;
+}
+
+.theme-toggle-large .theme-icon {
+	font-size: 1.5rem;
 }
 
 [data-theme="light"] .theme-icon.sun {
@@ -172,6 +209,26 @@ body {
 
 [data-theme="dark"] .theme-icon.moon {
 	display: none;
+}
+
+.theme-hint {
+	font-size: 0.85rem;
+	color: var(--text-muted);
+	margin: 0.5rem 0 0 0;
+}
+
+/* --- Profile page --- */
+.profile-section {
+	margin-top: 1.5rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--border);
+}
+
+.profile-section h3 {
+	font-size: 1.1rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+	margin: 0 0 0.5rem 0;
 }
 
 /* --- Main content --- */

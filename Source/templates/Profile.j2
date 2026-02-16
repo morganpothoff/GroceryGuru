@@ -1,0 +1,32 @@
+{% extends "Base.j2" %}
+
+{% block title %}Profile — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>Profile</h1>
+
+		{% if current_user.is_authenticated %}
+			<h2>Hi, {{ current_user.username | default(current_user.email) }}</h2>
+			<p class="text-muted">Account: {{ current_user.email }}</p>
+		{% else %}
+			<h2>Preferences</h2>
+		{% endif %}
+
+		<div class="profile-section">
+			<h3>Color scheme</h3>
+			<p class="text-muted">Choose your preferred theme. Your selection is saved automatically.</p>
+			<button type="button" class="theme-toggle theme-toggle-large js-theme-toggle" aria-label="Toggle theme" onclick="window.groceryGuruToggleTheme()">
+				<span class="theme-icon sun">☀️</span>
+				<span class="theme-icon moon">🌙</span>
+			</button>
+			<p class="theme-hint">
+				<span class="theme-hint-light">Light (green)</span> · <span class="theme-hint-dark">Dark (blue)</span>
+			</p>
+		</div>
+	</div>
+
+	{% block scripts %}
+	{{ super() }}
+	{% endblock %}
+{% endblock %}
