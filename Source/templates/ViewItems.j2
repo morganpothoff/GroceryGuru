@@ -8,12 +8,11 @@
 	<body>
 		<h1>View User's List Items</h1>
 
-		Current user's id: {{ user_id }}
-		<br>
-		Current user's items are:
+		Current user's items:
 		{% for list_ingredient, ingredient in list_ingredients %}
 			{{ ingredient.name }}
 			<br>
 		{% endfor %}
+		<p><a href="/">Home</a> | <a href="/AddListItem">Add Item</a> | <a href="/Logout">Logout</a></p>
 	</body>
 </html>

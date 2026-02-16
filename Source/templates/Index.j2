@@ -9,7 +9,8 @@
 		<h1>Grocery Guru</h1>
 
 		<h2>Please Login</h2>
-		<form name="login" method="POST">
+		{% if error %}<p style="color: red;">{{ error }}</p>{% endif %}
+		<form name="login" method="POST" action="/Login">
 			<div class="container">
 				<label for="email"><b>Email</b></label>
 				<input type="text" placeholder="Enter Email" name="email" value="{{ request.form.email }}" required>

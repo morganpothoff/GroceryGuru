@@ -1,5 +1,7 @@
 import os
-from sqlalchemy import select
+from pathlib import Path
+from werkzeug.security import generate_password_hash
+from sqlalchemy import select, insert
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
@@ -8,13 +10,31 @@ from sqlalchemy import create_engine
 from database import Select
 
 
-# engine, suppose it has two tables 'user' and 'address' set up
-DB_USER = os.getenv("GROCERY_GURU_DB_USER")
-DB_PASSWORD = os.getenv("GROCERY_GURU_DB_PASSWORD")
-DB_HOST = os.getenv("GROCERY_GURU_DB_HOST")
-DB_NAME = os.getenv("GROCERY_GURU_DB_NAME")
-engine = create_engine(f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}")
+# SQLite: use env var or default to Database/grocery_guru.db in project root
+_db_path = os.getenv("GROCERY_GURU_DB_PATH")
+if not _db_path:
+	_project_root = Path(__file__).resolve().parent.parent.parent
+	_db_path = str(_project_root / "Database" / "grocery_guru.db")
+_engine_url = f"sqlite:///{_db_path}"
+engine = create_engine(_engine_url, connect_args={"check_same_thread": False})
 
+
+def _init_schema_if_needed():
+	"""Create database file and tables if they don't exist."""
+	import sqlite3
+	Path(_db_path).parent.mkdir(parents=True, exist_ok=True)
+	schema_path = Path(_db_path).parent / "schema.sql"
+	if not schema_path.exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute(
+			"SELECT name FROM sqlite_master WHERE type='table' AND name='Persons'"
+		)
+		if cur.fetchone() is None:
+			raw.executescript(schema_path.read_text())
+
+
+_init_schema_if_needed()
 
 # reflect the tables
 Base = automap_base()
@@ -35,7 +55,8 @@ def get_user_count():
 
 
 def create_user(email, name, password):
-	test_person = Persons(email=email, name=name, password=password)
+	password_hash = generate_password_hash(password, method="pbkdf2:sha256")
+	test_person = Persons(email=email, name=name, password=password_hash)
 	
 	with Session(engine) as session:
 		session.add(test_person)  # insert
@@ -45,31 +66,57 @@ def create_user(email, name, password):
 
 
 def create_list(name, Persons_id):
-	test_list = Lists(**{"name": name, "Persons.id": Persons_id})
-
+	# Use Core insert: SQLAlchemy ORM forbids **kwargs with dotted column names like "Persons.id"
 	with Session(engine) as session:
-		session.add(test_list)  # insert
-		session.commit()  # commit
-		session.refresh(test_list)
-		return test_list.id
+		stmt = insert(Lists.__table__).values(**{"name": name, "Persons.id": Persons_id})
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
 
 
 def create_ingredient(name, Persons_id):
-	test_ingredient = Ingredients(**{"name": name, "Persons.id": Persons_id})
-	
 	with Session(engine) as session:
-		session.add(test_ingredient)  # insert
-		session.commit()  # commit
-		session.refresh(test_ingredient)
-		return test_ingredient.id
+		stmt = insert(Ingredients.__table__).values(**{"name": name, "Persons.id": Persons_id})
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
 
 
 def create_list_ingredient(quantity, date_added, Ingredients_id, Lists_id):
-	test_list_ingredient = ListIngredients(**{"quantity": quantity, "date_added": date_added,
-				"Ingredients.id": Ingredients_id, "Lists.id": Lists_id})
-	
 	with Session(engine) as session:
-		session.add(test_list_ingredient)  # insert
-		session.commit()  # commit
-		session.refresh(test_list_ingredient)
-		return test_list_ingredient.id
+		stmt = insert(ListIngredients.__table__).values(**{
+			"quantity": quantity,
+			"date_added": date_added,
+			"Ingredients.id": Ingredients_id,
+			"Lists.id": Lists_id,
+		})
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
+
+
+def get_or_create_list(name: str, Persons_id: int) -> int:
+	"""Get first list by name for user, or create it. Returns list id."""
+	with Session(engine) as session:
+		stmt = select(Lists).where(
+			getattr(Lists, "Persons.id") == Persons_id,
+			Lists.name == name,
+		)
+		row = session.execute(stmt).scalars().first()
+		if row:
+			return row.id
+		return create_list(name, Persons_id)
+
+
+def get_or_create_ingredient(name: str, Persons_id: int) -> int:
+	"""Get first non-deleted ingredient by name for user, or create it. Returns ingredient id."""
+	with Session(engine) as session:
+		stmt = select(Ingredients).where(
+			getattr(Ingredients, "Persons.id") == Persons_id,
+			Ingredients.name == name,
+			Ingredients.is_deleted == False,
+		)
+		row = session.execute(stmt).scalars().first()
+		if row:
+			return row.id
+		return create_ingredient(name, Persons_id)

@@ -3,13 +3,11 @@
 
 
 from flask import *
-from flask_login import (login_user)
+from flask_login import login_user, logout_user, login_required, current_user
 from flask_login import LoginManager
-from flask_login import login_user
 from datetime import datetime
 import json
 import os
-import psycopg2
 import Functions
 from datetime import timedelta
 import traceback
@@ -18,7 +16,10 @@ import werkzeug
 
 #import DB_Connections
 import database
-from database import create_user, create_list, create_ingredient, create_list_ingredient, get_user_count
+from database import (
+	create_user, create_list, create_ingredient, create_list_ingredient, get_user_count,
+	get_or_create_list, get_or_create_ingredient,
+)
 
 
 app = Flask(__name__, static_url_path="/static")
@@ -50,11 +51,13 @@ def load_user(user_id):
 # ————————————————————————————————— Pre Login ———————————————————————————————— #
 @app.route("/", methods=["GET", "POST"])
 def index():
-	#TODO: If not logged in, redirect user to /login
-	return render_template("Index.j2")
+	if not current_user.is_authenticated:
+		return redirect("/Login")
+	return render_template("Home.j2")
 
 
 @app.route("/Success")
+@login_required
 def success():
 	return render_template("Success.j2")
 
@@ -103,20 +106,47 @@ def create_user_test():
 
 
 @app.route("/DisplayIngredients/<int:user_id>")
+@login_required
 def display_ingredients_test(user_id: int):
-	# Get current user
-	# user_id = 20		# fix later
-
-	# Get user's home items
+	if current_user.id != user_id:
+		return "Forbidden: You can only view your own items.", 403
 	list_ingredients: list = database.Select.get_ListIngredients_by_Persons_id(user_id)
-	print(list_ingredients)
-	# Display ingredients
 	return render_template("ViewItems.j2", user_id=user_id, list_ingredients=list_ingredients)
 
 
-@app.route("/AddListItem/<int:user_id>")
-def add_list_item(user_id: int):
+@app.route("/Logout")
+@login_required
+def logout():
+	logout_user()
+	return redirect("/Login")
 
+
+@app.route("/AddListItem", methods=["GET", "POST"])
+@app.route("/AddListItem/<int:user_id>", methods=["GET", "POST"])
+@login_required
+def add_list_item(user_id: int = None):
+	# Normalize: use current_user when no user_id or when it matches
+	if user_id is not None and current_user.id != user_id:
+		return "Forbidden: You can only add items to your own lists.", 403
+	user_id = current_user.id
+
+	if request.method == "POST":
+		try:
+			list_name = request.form.get("list_name", "Shopping List").strip()
+			item_name = request.form.get("item_name", "").strip()
+			quantity = int(request.form.get("quantity", 1))
+			if not item_name:
+				raise ValueError("Item name is required.")
+			list_id = get_or_create_list(list_name, user_id)
+			ingredient_id = get_or_create_ingredient(item_name, user_id)
+			from datetime import datetime
+			create_list_ingredient(quantity, datetime.utcnow(), ingredient_id, list_id)
+			return redirect(f"/DisplayIngredients/{user_id}")
+		except ValueError as error:
+			return render_template("AddListItem.j2", user_id=user_id, error=str(error))
+		except Exception as error:
+			traceback.print_exc()
+			return render_template("AddListItem.j2", user_id=user_id, error=str(error))
 	return render_template("AddListItem.j2", user_id=user_id)
 
 

@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<!-- Icon -->
 		<link rel="stylesheet" href="/static/css/Style.css">
 	</head>
-	
 	<body>
 		<h1>Add Item to List</h1>
-
-		<form action="/action_page.php">
+		{% if error %}<p style="color: red;">{{ error }}</p>{% endif %}
+		<form method="POST" action="/AddListItem">
 			<label for="list_name">List Name:</label><br>
-			<input type="text" id="list_name" name="list_name" value="Shopping List"><br>
+			<input type="text" id="list_name" name="list_name" value="{{ request.form.list_name or 'Shopping List' }}" required><br>
 			<label for="item_name">Item Name:</label><br>
-			<input type="text" id="item_name" name="item_name" value="Bananas"><br><br>
-			<input type="submit" value="Submit">
-		</form> 		
+			<input type="text" id="item_name" name="item_name" value="{{ request.form.item_name or '' }}" required><br>
+			<label for="quantity">Quantity:</label><br>
+			<input type="number" id="quantity" name="quantity" value="{{ request.form.quantity or '1' }}" min="1"><br><br>
+			<button type="submit">Add Item</button>
+		</form>
+		<p><a href="/">Home</a> | <a href="/DisplayIngredients/{{ user_id }}">View My Items</a> | <a href="/Logout">Logout</a></p>
 	</body>
 </html>
