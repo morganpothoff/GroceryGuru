@@ -1,15 +1,12 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<!-- Icon -->
-		<link rel="stylesheet" href="/static/css/Style.css">
-	</head>
+{% extends "Base.j2" %}
 
-	<body>
-		user_id is {{ user_id }}
-		<br>
-		item_id is {{ item_id }}
-		<br>
-		list_ingredient_id is {{ list_ingredient_id }}
-	</body>
-</html>
+{% block title %}Create user test — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>Create user test</h1>
+		<p>user_id is {{ user_id }}</p>
+		<p>item_id is {{ item_id }}</p>
+		<p>list_ingredient_id is {{ list_ingredient_id }}</p>
+	</div>
+{% endblock %}

@@ -1,14 +1,11 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<!-- Icon -->
-		<link rel="stylesheet" href="/static/css/Style.css">
-	</head>
-	
-	<body>
-		<h1>Grocery Guru</h1>
+{% extends "Base.j2" %}
 
+{% block title %}Success — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>Grocery Guru</h1>
 		<h2>Success!</h2>
-		<p><a href="/">Home</a> | <a href="/AddListItem">Add Item</a> | <a href="/DisplayIngredients/{{ current_user.id }}">View My Items</a> | <a href="/Logout">Logout</a></p>
-	</body>
-</html>
+		<p>You're all set. What would you like to do next?</p>
+	</div>
+{% endblock %}

@@ -5,7 +5,7 @@
 from flask import *
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_login import LoginManager
-from datetime import datetime
+from datetime import datetime, date
 import json
 import os
 import Functions
@@ -28,6 +28,11 @@ app.secret_key = os.getenv("SECRET_KEY")
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
+
+
+@app.context_processor
+def inject_current_year():
+	return {"current_year": date.today().year}
 
 
 @login_manager.user_loader
@@ -53,7 +58,7 @@ def load_user(user_id):
 def index():
 	if not current_user.is_authenticated:
 		return redirect("/Login")
-	return render_template("Home.j2")
+	return render_template("Home.j2", current_page="home")
 
 
 @app.route("/Success")
@@ -93,6 +98,31 @@ def createAccount():
 		return render_template("CreateAccount.j2")
 
 
+@app.route("/Profile", methods=["GET"])
+def profile():
+	return render_template("Profile.j2")
+
+
+@app.route("/FAQ")
+def faq():
+	return render_template("FAQ.j2")
+
+
+@app.route("/Privacy")
+def privacy():
+	return render_template("Placeholder.j2", title="Privacy Policy", page_name="Privacy Policy")
+
+
+@app.route("/Terms")
+def terms():
+	return render_template("Placeholder.j2", title="Terms of Service", page_name="Terms of Service")
+
+
+@app.route("/Contact")
+def contact():
+	return render_template("Placeholder.j2", title="Contact", page_name="Contact")
+
+
 @app.route("/CreateUserTest")
 def create_user_test():
 	user_count = get_user_count()
@@ -111,7 +141,7 @@ def display_ingredients_test(user_id: int):
 	if current_user.id != user_id:
 		return "Forbidden: You can only view your own items.", 403
 	list_ingredients: list = database.Select.get_ListIngredients_by_Persons_id(user_id)
-	return render_template("ViewItems.j2", user_id=user_id, list_ingredients=list_ingredients)
+	return render_template("ViewItems.j2", user_id=user_id, list_ingredients=list_ingredients, current_page="view_items")
 
 
 @app.route("/Logout")
@@ -143,11 +173,11 @@ def add_list_item(user_id: int = None):
 			create_list_ingredient(quantity, datetime.utcnow(), ingredient_id, list_id)
 			return redirect(f"/DisplayIngredients/{user_id}")
 		except ValueError as error:
-			return render_template("AddListItem.j2", user_id=user_id, error=str(error))
+			return render_template("AddListItem.j2", user_id=user_id, error=str(error), current_page="add_items")
 		except Exception as error:
 			traceback.print_exc()
-			return render_template("AddListItem.j2", user_id=user_id, error=str(error))
-	return render_template("AddListItem.j2", user_id=user_id)
+			return render_template("AddListItem.j2", user_id=user_id, error=str(error), current_page="add_items")
+	return render_template("AddListItem.j2", user_id=user_id, current_page="add_items")
 
 
 
