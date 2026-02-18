@@ -231,11 +231,9 @@
 				});
 				const data = await resp.json();
 				if (data.success) {
-					addResult.innerHTML = data.message + ' <a href="/Pantry/' + {{ current_user.id|tojson }} + '">View pantry</a>';
+					addResult.innerHTML = '<span style="display: block; margin-bottom: 0.5rem;">' + data.message + '</span>' +
+						'<a href="/Pantry/' + {{ current_user.id|tojson }} + '" class="btn btn-primary">View pantry</a>';
 					addResult.style.color = 'var(--success)';
-					setTimeout(function() {
-						hideAddForm();
-					}, 3000);
 				} else {
 					addResult.textContent = data.error || 'Failed to add item.';
 					addResult.style.color = 'var(--error)';
