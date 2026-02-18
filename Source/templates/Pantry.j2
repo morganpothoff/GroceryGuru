@@ -1,0 +1,29 @@
+{% extends "Base.j2" %}
+
+{% block title %}My pantry — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>My pantry</h1>
+		<h2>Items added via barcode scan</h2>
+
+		{% if inventory_items %}
+			<ul class="item-list">
+				{% for inv_item, ingredient in inventory_items %}
+					<li>
+						<span>{{ ingredient.name }}</span>
+						{% if inv_item.date_expires %}
+							<span class="text-muted" style="margin-left: 0.5rem; font-size: 0.85rem;">(expires {{ inv_item.date_expires[:10] }})</span>
+						{% endif %}
+					</li>
+				{% endfor %}
+			</ul>
+		{% else %}
+			<p class="text-muted">No pantry items yet. <a href="/ScanPantryItem">Scan your first item</a>.</p>
+		{% endif %}
+
+		<div class="nav-links">
+			<a href="/ScanPantryItem">Scan item</a>
+		</div>
+	</div>
+{% endblock %}

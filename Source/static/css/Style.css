@@ -287,7 +287,8 @@ p {
 input[type="text"],
 input[type="password"],
 input[type="email"],
-input[type="number"] {
+input[type="number"],
+input[type="date"] {
 	width: 100%;
 	padding: 0.75rem 1rem;
 	font-size: 1rem;
@@ -337,6 +338,17 @@ input:focus {
 
 .btn-primary:active {
 	transform: translateY(0);
+}
+
+.btn-secondary {
+	background: var(--bg-elevated);
+	color: var(--text-primary);
+	border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+	background: var(--accent-bg);
+	color: var(--accent);
 }
 
 /* --- Links --- */
@@ -475,4 +487,56 @@ a:hover {
 
 .faq-section p {
 	margin: 0;
+}
+
+/* --- Barcode scanner --- */
+.scanner-wrapper {
+	position: relative;
+	width: 100%;
+	min-height: 280px;
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--bg-primary);
+}
+
+.scanner-reader {
+	width: 100%;
+	min-height: 280px;
+	border-radius: 8px;
+}
+
+.scanner-wrapper video {
+	border-radius: 8px;
+}
+
+.barcode-aim-bar {
+	position: absolute;
+	left: 10%;
+	right: 10%;
+	top: 50%;
+	transform: translateY(-50%);
+	height: 4px;
+	background: #e63946;
+	box-shadow: 0 0 0 2px rgba(230, 57, 70, 0.6);
+	border-radius: 2px;
+	pointer-events: none;
+	z-index: 10;
+}
+
+.scanner-loading {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg-primary);
+	color: var(--text-muted);
+	font-size: 1rem;
+	z-index: 5;
+	border-radius: 8px;
+}
+
+#qr-shaded-region {
+	border-width: 2px !important;
+	border-color: #e63946 !important;
 }

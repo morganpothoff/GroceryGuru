@@ -18,7 +18,7 @@ import werkzeug
 import database
 from database import (
 	create_user, create_list, create_ingredient, create_list_ingredient, get_user_count,
-	get_or_create_list, get_or_create_ingredient,
+	get_or_create_list, get_or_create_ingredient, create_inventory_ingredient,
 )
 
 
@@ -144,6 +144,15 @@ def display_ingredients_test(user_id: int):
 	return render_template("ViewItems.j2", user_id=user_id, list_ingredients=list_ingredients, current_page="view_items")
 
 
+@app.route("/Pantry/<int:user_id>")
+@login_required
+def pantry(user_id: int):
+	if current_user.id != user_id:
+		return "Forbidden: You can only view your own pantry.", 403
+	inventory_items = database.Select.get_InventoryIngredients_by_Persons_id(user_id)
+	return render_template("Pantry.j2", user_id=user_id, inventory_items=inventory_items, current_page="pantry")
+
+
 @app.route("/Logout")
 @login_required
 def logout():
@@ -178,6 +187,37 @@ def add_list_item(user_id: int = None):
 			traceback.print_exc()
 			return render_template("AddListItem.j2", user_id=user_id, error=str(error), current_page="add_items")
 	return render_template("AddListItem.j2", user_id=user_id, current_page="add_items")
+
+
+# ————————————————————————————————— Scan pantry item (barcode) ———————————————————————————————— #
+@app.route("/ScanPantryItem", methods=["GET"])
+@login_required
+def scan_pantry_item():
+	return render_template("ScanPantryItem.j2", current_page="scan_pantry")
+
+
+@app.route("/AddPantryItem", methods=["POST"])
+@login_required
+def add_pantry_item():
+	try:
+		item_name = request.form.get("item_name", "").strip()
+		expiration_date_str = request.form.get("expiration_date", "").strip()
+		if not item_name:
+			return jsonify({"success": False, "error": "Item name is required."}), 400
+		user_id = current_user.id
+		ingredient_id = get_or_create_ingredient(item_name, user_id)
+		date_purchased = datetime.utcnow()
+		date_expires = None
+		if expiration_date_str:
+			try:
+				date_expires = datetime.strptime(expiration_date_str, "%Y-%m-%d")
+			except ValueError:
+				date_expires = None
+		create_inventory_ingredient(1, date_purchased, date_expires, ingredient_id, None)
+		return jsonify({"success": True, "message": f"Added '{item_name}' to your pantry."})
+	except Exception as error:
+		traceback.print_exc()
+		return jsonify({"success": False, "error": str(error)}), 500
 
 
 

@@ -1,0 +1,243 @@
+{% extends "Base.j2" %}
+
+{% block title %}Scan item — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<p style="margin: 0 0 1rem 0;"><a href="/AddListItem">← Add items</a></p>
+		<h1>Scan item</h1>
+		<h2>Scan a barcode to add packaged items to your pantry</h2>
+
+		<div id="scan-section">
+			<button type="button" id="start-scan-btn" class="btn btn-primary">Start camera & scan barcode</button>
+			<div id="scanner-container" style="display: none; margin-top: 1rem;">
+				<div id="scanner-wrapper" class="scanner-wrapper">
+					<div id="reader" class="scanner-reader"></div>
+					<div class="barcode-aim-bar" aria-hidden="true"></div>
+					<div id="scanner-loading" class="scanner-loading" style="display: none;">Starting camera…</div>
+				</div>
+				<button type="button" id="stop-scan-btn" class="btn btn-primary" style="margin-top: 0.75rem;">Stop scanning</button>
+			</div>
+			<p id="scan-hint" class="text-muted" style="margin-top: 0.5rem; font-size: 0.9rem;">Hold the barcode up to your camera. Supports UPC, EAN, and other common formats.</p>
+			<div id="scan-error" style="margin-top: 0.5rem; color: var(--error); display: none;"></div>
+		</div>
+
+		<div id="add-form-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+			<h3 style="font-size: 1.1rem; margin: 0 0 1rem 0;">Add to pantry</h3>
+			<form id="add-pantry-form">
+				<div class="form-group">
+					<label for="item_name">Item name</label>
+					<input type="text" id="item_name" name="item_name" required placeholder="Product name from barcode">
+				</div>
+				<div class="form-group">
+					<label for="expiration_date">Expiration date <span class="text-muted">(optional)</span></label>
+					<input type="date" id="expiration_date" name="expiration_date" placeholder="YYYY-MM-DD">
+				</div>
+				<button type="submit" class="btn btn-primary">Add to pantry</button>
+				<button type="button" id="scan-another-btn" class="btn btn-secondary" style="margin-left: 0.5rem;">Scan another</button>
+			</form>
+			<div id="add-result" style="margin-top: 1rem;"></div>
+		</div>
+	</div>
+{% endblock %}
+
+{% block scripts %}
+	{{ super() }}
+	<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+	<script>
+	(function() {
+		const OPEN_FOOD_FACTS_URL = 'https://world.openfoodfacts.org/api/v2/product/';
+		let html5QrCode = null;
+
+		function get(id) {
+			var el = document.getElementById(id);
+			if (!el) console.error('Element not found: #' + id);
+			return el;
+		}
+
+		const startBtn = get('start-scan-btn');
+		const stopBtn = get('stop-scan-btn');
+		const scannerContainer = get('scanner-container');
+		const addFormSection = get('add-form-section');
+		const addForm = get('add-pantry-form');
+		const itemNameInput = get('item_name');
+		const expirationInput = get('expiration_date');
+		const addResult = get('add-result');
+		const scanAnotherBtn = get('scan-another-btn');
+		const scanError = get('scan-error');
+
+		if (!startBtn || !scannerContainer || !addForm) {
+			console.error('Scan page: required elements missing');
+			return;
+		}
+		if (typeof Html5Qrcode === 'undefined') {
+			scanError.textContent = 'Scanner library failed to load. Check your connection and refresh the page.';
+			scanError.style.display = 'block';
+			console.error('Html5Qrcode is not defined — script may have failed to load');
+			return;
+		}
+
+		function showAddForm(productName) {
+			itemNameInput.value = productName || '';
+			expirationInput.value = '';
+			addResult.textContent = '';
+			addFormSection.style.display = 'block';
+		}
+
+		function hideAddForm() {
+			addFormSection.style.display = 'none';
+		}
+
+		function stopScan() {
+			if (html5QrCode && html5QrCode.isScanning) {
+				html5QrCode.stop().then(function() {
+					scannerContainer.style.display = 'none';
+					startBtn.style.display = 'inline-flex';
+				}).catch(function(err) { console.warn(err); });
+			}
+		}
+
+		async function lookupBarcode(barcode) {
+			try {
+				const resp = await fetch(OPEN_FOOD_FACTS_URL + barcode + '.json');
+				const data = await resp.json();
+				if (data.status === 1 && data.product) {
+					const p = data.product;
+					return p.product_name || p.product_name_en || p.generic_name ||
+						p.generic_name_en || p.abbreviated_product_name || ('Product ' + barcode);
+				}
+				return 'Product ' + barcode;
+			} catch (e) {
+				console.warn('Barcode lookup failed:', e);
+				return 'Product ' + barcode;
+			}
+		}
+
+		startBtn.addEventListener('click', function() {
+			startBtn.style.display = 'none';
+			scannerContainer.style.display = 'block';
+			scanError.style.display = 'none';
+			hideAddForm();
+
+			var loadingEl = document.getElementById('scanner-loading');
+			if (loadingEl) loadingEl.style.display = 'flex';
+
+			var layoutRetries = 0;
+			function startScanner() {
+				var reader = document.getElementById('reader');
+				if (!reader) return;
+				if (reader.clientWidth === 0) {
+					if (++layoutRetries < 30) {
+						setTimeout(startScanner, 100);
+						return;
+					}
+				}
+				try {
+					html5QrCode = new Html5Qrcode('reader');
+				} catch (e) {
+					console.error('Html5Qrcode init failed:', e);
+					scanError.textContent = 'Scanner initialization failed: ' + (e.message || 'Unknown error');
+					scanError.style.display = 'block';
+					scannerContainer.style.display = 'none';
+					startBtn.style.display = 'inline-flex';
+					if (loadingEl) loadingEl.style.display = 'none';
+					return;
+				}
+				var config = {
+					fps: 10,
+					qrbox: function(vw, vh) {
+						var barHeight = Math.min(80, vh * 0.2);
+						var barWidth = Math.min(280, vw * 0.9);
+						return { width: barWidth, height: barHeight };
+					}
+				};
+				html5QrCode.start(
+					{ facingMode: 'user' },
+					config,
+					async function(decodedText) {
+						html5QrCode.stop().then(function() {
+							scannerContainer.style.display = 'none';
+							startBtn.style.display = 'inline-flex';
+							if (loadingEl) loadingEl.style.display = 'none';
+							lookupBarcode(decodedText).then(function(productName) {
+								showAddForm(productName);
+							});
+						}).catch(function(err) { console.warn(err); });
+					},
+					function() {}
+				).then(function() {
+					if (loadingEl) loadingEl.style.display = 'none';
+				}).catch(function(err) {
+					console.error('Camera error:', err);
+					if (loadingEl) loadingEl.style.display = 'none';
+					scannerContainer.style.display = 'none';
+					startBtn.style.display = 'inline-flex';
+					scanError.innerHTML = 'Could not access camera: ' + (err.message || 'Permission denied. Enable camera access and try again.') +
+						' <button type="button" class="btn btn-secondary" style="margin-left: 0.5rem; margin-top: 0.25rem;">Try again</button>';
+					scanError.style.display = 'block';
+					scanError.querySelector('button').addEventListener('click', function() {
+						scanError.style.display = 'none';
+						scanError.innerHTML = '';
+						startBtn.click();
+					});
+				});
+			}
+
+			setTimeout(function() {
+				requestAnimationFrame(function() {
+					requestAnimationFrame(startScanner);
+				});
+			}, 50);
+		});
+
+		if (stopBtn) {
+			stopBtn.addEventListener('click', function() {
+				stopScan();
+				var lo = document.getElementById('scanner-loading');
+				if (lo) lo.style.display = 'none';
+			});
+		}
+
+		if (scanAnotherBtn) {
+			scanAnotherBtn.addEventListener('click', function() {
+				hideAddForm();
+				startBtn.click();
+			});
+		}
+
+		addForm.addEventListener('submit', async function(e) {
+			e.preventDefault();
+			addResult.textContent = 'Adding…';
+			addResult.style.color = '';
+
+			const formData = new FormData(addForm);
+			const body = new URLSearchParams();
+			body.append('item_name', formData.get('item_name'));
+			const exp = formData.get('expiration_date');
+			if (exp) body.append('expiration_date', exp);
+
+			try {
+				const resp = await fetch('/AddPantryItem', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+					body: body
+				});
+				const data = await resp.json();
+				if (data.success) {
+					addResult.innerHTML = data.message + ' <a href="/Pantry/' + {{ current_user.id|tojson }} + '">View pantry</a>';
+					addResult.style.color = 'var(--success)';
+					setTimeout(function() {
+						hideAddForm();
+					}, 3000);
+				} else {
+					addResult.textContent = data.error || 'Failed to add item.';
+					addResult.style.color = 'var(--error)';
+				}
+			} catch (err) {
+				addResult.textContent = 'Network error. Please try again.';
+				addResult.style.color = 'var(--error)';
+			}
+		});
+	})();
+	</script>
+{% endblock %}

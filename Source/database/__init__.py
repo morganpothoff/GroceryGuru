@@ -47,6 +47,7 @@ Persons = Base.classes.Persons
 Lists = Base.classes.Lists
 Ingredients = Base.classes.Ingredients
 ListIngredients = Base.classes.ListIngredients
+InventoryIngredients = Base.classes.InventoryIngredients
 
 
 def get_user_count():
@@ -120,3 +121,20 @@ def get_or_create_ingredient(name: str, Persons_id: int) -> int:
 		if row:
 			return row.id
 		return create_ingredient(name, Persons_id)
+
+
+def create_inventory_ingredient(count: int, date_purchased, date_expires, Ingredients_id: int, ListIngredients_id=None):
+	"""Add an item to the user's pantry (inventory)."""
+	with Session(engine) as session:
+		values = {
+			"count": count,
+			"date_purchased": date_purchased,
+			"date_expires": date_expires if date_expires else None,
+			"Ingredients.id": Ingredients_id,
+			"ListIngredients.id": ListIngredients_id,
+			"is_deleted": False,
+		}
+		stmt = insert(InventoryIngredients.__table__).values(**values)
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
