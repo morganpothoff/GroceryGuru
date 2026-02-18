@@ -30,6 +30,10 @@
 					<input type="text" id="item_name" name="item_name" required placeholder="Product name from barcode">
 				</div>
 				<div class="form-group">
+					<label for="quantity">Quantity</label>
+					<input type="number" id="quantity" name="quantity" min="1" max="9999" value="1" required>
+				</div>
+				<div class="form-group">
 					<label for="expiration_date">Expiration date <span class="text-muted">(optional)</span></label>
 					<input type="date" id="expiration_date" name="expiration_date" placeholder="YYYY-MM-DD">
 				</div>
@@ -61,6 +65,7 @@
 		const addFormSection = get('add-form-section');
 		const addForm = get('add-pantry-form');
 		const itemNameInput = get('item_name');
+		const quantityInput = get('quantity');
 		const expirationInput = get('expiration_date');
 		const addResult = get('add-result');
 		const scanAnotherBtn = get('scan-another-btn');
@@ -79,6 +84,7 @@
 
 		function showAddForm(productName) {
 			itemNameInput.value = productName || '';
+			quantityInput.value = '1';
 			expirationInput.value = '';
 			addResult.textContent = '';
 			addFormSection.style.display = 'block';
@@ -213,6 +219,7 @@
 			const formData = new FormData(addForm);
 			const body = new URLSearchParams();
 			body.append('item_name', formData.get('item_name'));
+			body.append('quantity', formData.get('quantity') || '1');
 			const exp = formData.get('expiration_date');
 			if (exp) body.append('expiration_date', exp);
 

@@ -201,9 +201,14 @@ def scan_pantry_item():
 def add_pantry_item():
 	try:
 		item_name = request.form.get("item_name", "").strip()
+		quantity_str = request.form.get("quantity", "1").strip()
 		expiration_date_str = request.form.get("expiration_date", "").strip()
 		if not item_name:
 			return jsonify({"success": False, "error": "Item name is required."}), 400
+		try:
+			quantity = max(1, int(quantity_str))
+		except (ValueError, TypeError):
+			quantity = 1
 		user_id = current_user.id
 		ingredient_id = get_or_create_ingredient(item_name, user_id)
 		date_purchased = datetime.utcnow()
@@ -213,8 +218,9 @@ def add_pantry_item():
 				date_expires = datetime.strptime(expiration_date_str, "%Y-%m-%d")
 			except ValueError:
 				date_expires = None
-		create_inventory_ingredient(1, date_purchased, date_expires, ingredient_id, None)
-		return jsonify({"success": True, "message": f"Added '{item_name}' to your pantry."})
+		create_inventory_ingredient(quantity, date_purchased, date_expires, ingredient_id, None)
+		msg = f"Added {quantity} '{item_name}' to your pantry." if quantity > 1 else f"Added '{item_name}' to your pantry."
+		return jsonify({"success": True, "message": msg})
 	except Exception as error:
 		traceback.print_exc()
 		return jsonify({"success": False, "error": str(error)}), 500
