@@ -19,6 +19,7 @@ import database
 from database import (
 	create_user, create_list, create_ingredient, create_list_ingredient, get_user_count,
 	get_or_create_list, get_or_create_ingredient, create_inventory_ingredient,
+	find_matching_inventory_item, add_inventory_count,
 )
 
 
@@ -218,8 +219,13 @@ def add_pantry_item():
 				date_expires = datetime.strptime(expiration_date_str, "%Y-%m-%d")
 			except ValueError:
 				date_expires = None
-		create_inventory_ingredient(quantity, date_purchased, date_expires, ingredient_id, None)
-		msg = f"Added {quantity} '{item_name}' to your pantry." if quantity > 1 else f"Added '{item_name}' to your pantry."
+		existing_id = find_matching_inventory_item(ingredient_id, date_expires)
+		if existing_id is not None:
+			add_inventory_count(existing_id, quantity)
+			msg = f"Added {quantity} to existing '{item_name}' in your pantry."
+		else:
+			create_inventory_ingredient(quantity, date_purchased, date_expires, ingredient_id, None)
+			msg = f"Added {quantity} '{item_name}' to your pantry." if quantity > 1 else f"Added '{item_name}' to your pantry."
 		return jsonify({"success": True, "message": msg})
 	except Exception as error:
 		traceback.print_exc()

@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from werkzeug.security import generate_password_hash
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, update
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
@@ -138,3 +138,44 @@ def create_inventory_ingredient(count: int, date_purchased, date_expires, Ingred
 		result = session.execute(stmt)
 		session.commit()
 		return result.inserted_primary_key[0]
+
+
+def _norm_expires(val):
+	"""Normalize date_expires to YYYY-MM-DD string or None for comparison."""
+	if val is None:
+		return None
+	if hasattr(val, "strftime"):
+		return val.strftime("%Y-%m-%d")
+	s = str(val)
+	return s[:10] if len(s) >= 10 else s
+
+
+def find_matching_inventory_item(Ingredients_id: int, date_expires) -> int | None:
+	"""Find an existing non-deleted pantry item with same ingredient and matching expiration.
+	Returns the inventory item id if found, else None.
+	Match: both have no expiration, or both have the same expiration date.
+	"""
+	norm_new = _norm_expires(date_expires)
+	with Session(engine) as session:
+		stmt = select(InventoryIngredients).where(
+			getattr(InventoryIngredients, "Ingredients.id") == Ingredients_id,
+			InventoryIngredients.is_deleted == False,
+		)
+		for inv in session.scalars(stmt):
+			norm_existing = _norm_expires(getattr(inv, "date_expires", None))
+			if norm_existing == norm_new:
+				return inv.id
+	return None
+
+
+def add_inventory_count(inventory_id: int, add_count: int):
+	"""Add add_count to the existing inventory item's count."""
+	tbl = InventoryIngredients.__table__
+	with Session(engine) as session:
+		stmt = (
+			update(tbl)
+			.where(tbl.c.id == inventory_id)
+			.values(count=tbl.c.count + add_count)
+		)
+		session.execute(stmt)
+		session.commit()
