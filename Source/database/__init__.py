@@ -34,7 +34,20 @@ def _init_schema_if_needed():
 			raw.executescript(schema_path.read_text())
 
 
+def _migrate_add_notes_if_needed():
+	"""Add notes column to InventoryIngredients if it doesn't exist."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("PRAGMA table_info(InventoryIngredients)")
+		cols = [row[1] for row in cur.fetchall()]
+		if "notes" not in cols:
+			raw.execute("ALTER TABLE InventoryIngredients ADD COLUMN notes TEXT")
+
+
 _init_schema_if_needed()
+_migrate_add_notes_if_needed()
 
 # reflect the tables
 Base = automap_base()
@@ -177,5 +190,30 @@ def add_inventory_count(inventory_id: int, add_count: int):
 			.where(tbl.c.id == inventory_id)
 			.values(count=tbl.c.count + add_count)
 		)
+		session.execute(stmt)
+		session.commit()
+
+
+def update_inventory_ingredient(inventory_id: int, count: int, date_expires=None, notes: str = None):
+	"""Update an inventory item's fields. Pass None for date_expires or notes to clear them."""
+	tbl = InventoryIngredients.__table__
+	values = {
+		"count": max(1, count),
+		"date_expires": date_expires,
+		"notes": (notes or "").strip() or None,
+	}
+	col_names = {c.name for c in tbl.c}
+	values = {k: v for k, v in values.items() if k in col_names}
+	with Session(engine) as session:
+		stmt = update(tbl).where(tbl.c.id == inventory_id).values(**values)
+		session.execute(stmt)
+		session.commit()
+
+
+def soft_delete_inventory_ingredient(inventory_id: int):
+	"""Soft-delete an inventory item by setting is_deleted=True."""
+	tbl = InventoryIngredients.__table__
+	with Session(engine) as session:
+		stmt = update(tbl).where(tbl.c.id == inventory_id).values(is_deleted=True)
 		session.execute(stmt)
 		session.commit()

@@ -52,6 +52,7 @@ CREATE TABLE "InventoryIngredients" (
 	"count" INTEGER NOT NULL,
 	"date_purchased" TEXT NOT NULL DEFAULT (datetime('now')),
 	"date_expires" TEXT,
+	"notes" TEXT,
 	"Ingredients.id" INTEGER NOT NULL,
 	"ListIngredients.id" INTEGER DEFAULT NULL,
 	"is_deleted" INTEGER NOT NULL DEFAULT 0,

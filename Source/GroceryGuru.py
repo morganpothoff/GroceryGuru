@@ -20,6 +20,7 @@ from database import (
 	create_user, create_list, create_ingredient, create_list_ingredient, get_user_count,
 	get_or_create_list, get_or_create_ingredient, create_inventory_ingredient,
 	find_matching_inventory_item, add_inventory_count,
+	update_inventory_ingredient, soft_delete_inventory_ingredient,
 )
 
 
@@ -34,6 +35,14 @@ login_manager.login_view = "login"
 @app.context_processor
 def inject_current_year():
 	return {"current_year": date.today().year}
+
+
+@app.template_filter("date_str")
+def date_str_filter(d):
+	"""Format date for display (YYYY-MM-DD). Handles datetime, date, or string."""
+	if d is None:
+		return ""
+	return d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)[:10]
 
 
 @login_manager.user_loader
@@ -152,6 +161,78 @@ def pantry(user_id: int):
 		return "Forbidden: You can only view your own pantry.", 403
 	inventory_items = database.Select.get_InventoryIngredients_by_Persons_id(user_id)
 	return render_template("Pantry.j2", user_id=user_id, inventory_items=inventory_items, current_page="pantry")
+
+
+@app.route("/PantryItem/<int:item_id>", methods=["GET", "POST"])
+@login_required
+def pantry_item(item_id: int):
+	row = database.Select.get_InventoryIngredient_by_id(item_id, current_user.id)
+	if row is None:
+		return "Item not found or you don't have access to it.", 404
+	inv_item, ingredient = row
+	if request.method == "POST":
+		action = request.form.get("action")
+		if action == "delete":
+			soft_delete_inventory_ingredient(item_id)
+			return redirect(url_for("pantry", user_id=current_user.id))
+		if action == "update":
+			try:
+				quantity_str = request.form.get("quantity", str(inv_item.count)).strip()
+				quantity = max(1, int(quantity_str))
+			except (ValueError, TypeError):
+				quantity = inv_item.count
+			expiration_date_str = request.form.get("expiration_date", "").strip()
+			notes = request.form.get("notes", "").strip()
+			date_expires = None
+			if expiration_date_str:
+				try:
+					date_expires = datetime.strptime(expiration_date_str, "%Y-%m-%d")
+				except ValueError:
+					pass
+			update_inventory_ingredient(
+				item_id,
+				count=quantity,
+				date_expires=date_expires,
+				notes=notes if notes else None,
+			)
+			return redirect(url_for("pantry_item", item_id=item_id))
+	# Refresh after possible update from another request
+	row = database.Select.get_InventoryIngredient_by_id(item_id, current_user.id)
+	if row is None:
+		return redirect(url_for("pantry", user_id=current_user.id))
+	inv_item, ingredient = row
+
+	def _fmt_date(d):
+		if d is None:
+			return ""
+		if hasattr(d, "strftime"):
+			return d.strftime("%m/%d/%Y")
+		s = str(d)[:10]  # YYYY-MM-DD
+		if len(s) == 10 and s[4] == "-" and s[7] == "-":
+			return f"{s[5:7]}/{s[8:10]}/{s[:4]}"
+		return s
+
+	return render_template(
+		"PantryItem.j2",
+		inv_item=inv_item,
+		ingredient=ingredient,
+		item_id=item_id,
+		expiration_date_val=_fmt_date(getattr(inv_item, "date_expires", None)),
+		notes_val=getattr(inv_item, "notes", None) or "",
+		date_purchased_str=_fmt_date(getattr(inv_item, "date_purchased", None)),
+		current_page="pantry",
+	)
+
+
+@app.route("/DeletePantryItem/<int:item_id>", methods=["POST"])
+@login_required
+def delete_pantry_item(item_id: int):
+	row = database.Select.get_InventoryIngredient_by_id(item_id, current_user.id)
+	if row is None:
+		return "Item not found or you don't have access to it.", 404
+	soft_delete_inventory_ingredient(item_id)
+	redirect_to = request.form.get("redirect_to") or url_for("pantry", user_id=current_user.id)
+	return redirect(redirect_to)
 
 
 @app.route("/Logout")
