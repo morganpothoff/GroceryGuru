@@ -313,17 +313,5 @@ def add_pantry_item():
 		return jsonify({"success": False, "error": str(error)}), 500
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-app.run(host="localhost", port=8000, debug=True)
+if __name__ == "__main__":
+	app.run(host="localhost", port=8000, debug=True)
