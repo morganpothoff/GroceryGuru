@@ -1,0 +1,15 @@
+{
+  "name": "groceryguru",
+  "version": "1.0.0",
+  "description": "Uses SQLite (no PostgreSQL required). The database file is created automatically at `Database/grocery_guru.db` on first run. Passwords are stored as pbkdf2:sha256 hashes.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "html5-qrcode": "^2.3.8"
+  }
+}

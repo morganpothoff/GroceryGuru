@@ -287,7 +287,8 @@ p {
 input[type="text"],
 input[type="password"],
 input[type="email"],
-input[type="number"] {
+input[type="number"],
+input[type="date"] {
 	width: 100%;
 	padding: 0.75rem 1rem;
 	font-size: 1rem;
@@ -304,6 +305,26 @@ input::placeholder {
 }
 
 input:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 4px var(--accent-bg);
+}
+
+textarea {
+	width: 100%;
+	padding: 0.75rem 1rem;
+	font-size: 1rem;
+	font-family: inherit;
+	background: var(--bg-input);
+	border: 2px solid var(--border);
+	border-radius: 8px;
+	color: var(--text-primary);
+	transition: border-color 0.2s, box-shadow 0.2s;
+	resize: vertical;
+	min-height: 80px;
+}
+
+textarea:focus {
 	outline: none;
 	border-color: var(--accent);
 	box-shadow: 0 0 0 4px var(--accent-bg);
@@ -337,6 +358,39 @@ input:focus {
 
 .btn-primary:active {
 	transform: translateY(0);
+}
+
+.btn-secondary {
+	background: var(--bg-elevated);
+	color: var(--text-primary);
+	border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+	background: var(--accent-bg);
+	color: var(--accent);
+}
+
+.btn-danger {
+	background: #e57373;
+	color: #1a1a1a;
+}
+
+.btn-danger .trash-icon {
+	fill: #1a1a1a;
+}
+
+.btn-danger:hover {
+	background: #ef5350;
+}
+
+.btn-danger:hover .trash-icon {
+	fill: #1a1a1a;
+}
+
+.btn-sm {
+	padding: 0.4rem 0.75rem;
+	font-size: 0.85rem;
 }
 
 /* --- Links --- */
@@ -419,6 +473,45 @@ a:hover {
 	margin-right: 0.75rem;
 }
 
+.item-list-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.item-list-link {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.25rem 0.5rem;
+	text-decoration: none;
+	color: inherit;
+	min-width: 0;
+}
+
+.item-list-link:hover {
+	color: var(--accent);
+}
+
+.item-name {
+	font-weight: 500;
+}
+
+.item-qty {
+	color: var(--text-muted);
+	font-size: 0.9rem;
+}
+
+.item-expires {
+	font-size: 0.85rem;
+}
+
+.item-delete-form {
+	flex-shrink: 0;
+}
+
 /* --- Utility --- */
 .text-muted {
 	color: var(--text-muted);
@@ -475,4 +568,56 @@ a:hover {
 
 .faq-section p {
 	margin: 0;
+}
+
+/* --- Barcode scanner --- */
+.scanner-wrapper {
+	position: relative;
+	width: 100%;
+	min-height: 280px;
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--bg-primary);
+}
+
+.scanner-reader {
+	width: 100%;
+	min-height: 280px;
+	border-radius: 8px;
+}
+
+.scanner-wrapper video {
+	border-radius: 8px;
+}
+
+.barcode-aim-bar {
+	position: absolute;
+	left: 10%;
+	right: 10%;
+	top: 50%;
+	transform: translateY(-50%);
+	height: 4px;
+	background: #e63946;
+	box-shadow: 0 0 0 2px rgba(230, 57, 70, 0.6);
+	border-radius: 2px;
+	pointer-events: none;
+	z-index: 10;
+}
+
+.scanner-loading {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg-primary);
+	color: var(--text-muted);
+	font-size: 1rem;
+	z-index: 5;
+	border-radius: 8px;
+}
+
+#qr-shaded-region {
+	border-width: 2px !important;
+	border-color: #e63946 !important;
 }

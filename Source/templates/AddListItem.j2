@@ -6,6 +6,10 @@
 	<div class="card">
 		<h1>Add item to list</h1>
 
+		<div class="action-buttons" style="margin-bottom: 1.5rem;">
+			<a href="/ScanPantryItem" class="btn btn-primary">Scan item</a>
+		</div>
+
 		{% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
 
 		<form method="POST" action="/AddListItem">

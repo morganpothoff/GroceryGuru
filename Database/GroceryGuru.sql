@@ -63,6 +63,7 @@ CREATE TABLE "InventoryIngredients" (
 	"count" INT NOT NULL,
 	"date_purchased" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	"date_expires" TIMESTAMP,  -- Null indicates item does not expire
+	"notes" TEXT,
 	"Ingredients.id" INT NOT NULL,
 	"ListIngredients.id" INT DEFAULT NULL,	-- Null indicated item is not from a list
 	"is_deleted" BOOLEAN NOT NULL DEFAULT FALSE,

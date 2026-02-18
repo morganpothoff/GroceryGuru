@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from werkzeug.security import generate_password_hash
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, update
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
@@ -34,7 +34,20 @@ def _init_schema_if_needed():
 			raw.executescript(schema_path.read_text())
 
 
+def _migrate_add_notes_if_needed():
+	"""Add notes column to InventoryIngredients if it doesn't exist."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("PRAGMA table_info(InventoryIngredients)")
+		cols = [row[1] for row in cur.fetchall()]
+		if "notes" not in cols:
+			raw.execute("ALTER TABLE InventoryIngredients ADD COLUMN notes TEXT")
+
+
 _init_schema_if_needed()
+_migrate_add_notes_if_needed()
 
 # reflect the tables
 Base = automap_base()
@@ -47,6 +60,7 @@ Persons = Base.classes.Persons
 Lists = Base.classes.Lists
 Ingredients = Base.classes.Ingredients
 ListIngredients = Base.classes.ListIngredients
+InventoryIngredients = Base.classes.InventoryIngredients
 
 
 def get_user_count():
@@ -120,3 +134,86 @@ def get_or_create_ingredient(name: str, Persons_id: int) -> int:
 		if row:
 			return row.id
 		return create_ingredient(name, Persons_id)
+
+
+def create_inventory_ingredient(count: int, date_purchased, date_expires, Ingredients_id: int, ListIngredients_id=None):
+	"""Add an item to the user's pantry (inventory)."""
+	with Session(engine) as session:
+		values = {
+			"count": count,
+			"date_purchased": date_purchased,
+			"date_expires": date_expires if date_expires else None,
+			"Ingredients.id": Ingredients_id,
+			"ListIngredients.id": ListIngredients_id,
+			"is_deleted": False,
+		}
+		stmt = insert(InventoryIngredients.__table__).values(**values)
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
+
+
+def _norm_expires(val):
+	"""Normalize date_expires to YYYY-MM-DD string or None for comparison."""
+	if val is None:
+		return None
+	if hasattr(val, "strftime"):
+		return val.strftime("%Y-%m-%d")
+	s = str(val)
+	return s[:10] if len(s) >= 10 else s
+
+
+def find_matching_inventory_item(Ingredients_id: int, date_expires) -> int | None:
+	"""Find an existing non-deleted pantry item with same ingredient and matching expiration.
+	Returns the inventory item id if found, else None.
+	Match: both have no expiration, or both have the same expiration date.
+	"""
+	norm_new = _norm_expires(date_expires)
+	with Session(engine) as session:
+		stmt = select(InventoryIngredients).where(
+			getattr(InventoryIngredients, "Ingredients.id") == Ingredients_id,
+			InventoryIngredients.is_deleted == False,
+		)
+		for inv in session.scalars(stmt):
+			norm_existing = _norm_expires(getattr(inv, "date_expires", None))
+			if norm_existing == norm_new:
+				return inv.id
+	return None
+
+
+def add_inventory_count(inventory_id: int, add_count: int):
+	"""Add add_count to the existing inventory item's count."""
+	tbl = InventoryIngredients.__table__
+	with Session(engine) as session:
+		stmt = (
+			update(tbl)
+			.where(tbl.c.id == inventory_id)
+			.values(count=tbl.c.count + add_count)
+		)
+		session.execute(stmt)
+		session.commit()
+
+
+def update_inventory_ingredient(inventory_id: int, count: int, date_expires=None, notes: str = None):
+	"""Update an inventory item's fields. Pass None for date_expires or notes to clear them."""
+	tbl = InventoryIngredients.__table__
+	values = {
+		"count": max(1, count),
+		"date_expires": date_expires,
+		"notes": (notes or "").strip() or None,
+	}
+	col_names = {c.name for c in tbl.c}
+	values = {k: v for k, v in values.items() if k in col_names}
+	with Session(engine) as session:
+		stmt = update(tbl).where(tbl.c.id == inventory_id).values(**values)
+		session.execute(stmt)
+		session.commit()
+
+
+def soft_delete_inventory_ingredient(inventory_id: int):
+	"""Soft-delete an inventory item by setting is_deleted=True."""
+	tbl = InventoryIngredients.__table__
+	with Session(engine) as session:
+		stmt = update(tbl).where(tbl.c.id == inventory_id).values(is_deleted=True)
+		session.execute(stmt)
+		session.commit()
