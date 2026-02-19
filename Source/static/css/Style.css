@@ -284,6 +284,41 @@ p {
 	margin-bottom: 0.4rem;
 }
 
+select {
+	width: 100%;
+	padding: 0.75rem 1rem;
+	font-size: 1rem;
+	font-family: inherit;
+	background: var(--bg-input);
+	border: 2px solid var(--border);
+	border-radius: 8px;
+	color: var(--text-primary);
+	cursor: pointer;
+}
+
+select:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 4px var(--accent-bg);
+}
+
+.list-dropdown {
+	width: auto;
+	min-width: 12rem;
+	font-weight: 600;
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	border: 0;
+}
+
 input[type="text"],
 input[type="password"],
 input[type="email"],

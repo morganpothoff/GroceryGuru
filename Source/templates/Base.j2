@@ -33,6 +33,7 @@
 				{% if current_user.is_authenticated %}
 					<a href="/">Home</a>
 					<a href="/Pantry/{{ current_user.id }}">My pantry</a>
+					<a href="/ShoppingList/{{ current_user.id }}">Shopping list</a>
 					<a href="/AddListItem">Add items</a>
 				{% endif %}
 			</nav>

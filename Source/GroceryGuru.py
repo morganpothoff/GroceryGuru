@@ -21,6 +21,7 @@ from database import (
 	get_or_create_list, get_or_create_ingredient, create_inventory_ingredient,
 	find_matching_inventory_item, add_inventory_count,
 	update_inventory_ingredient, soft_delete_inventory_ingredient,
+	update_list_ingredient, soft_delete_list_ingredient,
 )
 
 
@@ -145,13 +146,39 @@ def create_user_test():
 	return render_template("CreateUserTest.j2", user_id=user_id, item_id=item_id1, list_ingredient_id=list_ingredient_id1)
 
 
-@app.route("/DisplayIngredients/<int:user_id>")
+@app.route("/CreateList", methods=["POST"])
 @login_required
-def display_ingredients_test(user_id: int):
+def create_list_route():
+	"""Create a new empty list and redirect to its view."""
+	list_name = request.form.get("list_name", "").strip()
+	if not list_name:
+		return redirect(url_for("display_ingredients", user_id=current_user.id))
+	user_id = current_user.id
+	get_or_create_list(list_name, user_id)
+	return redirect(url_for("display_ingredients", user_id=user_id, list_name=list_name))
+
+
+@app.route("/ShoppingList/<int:user_id>")
+@app.route("/ShoppingList/<int:user_id>/<path:list_name>")
+@login_required
+def display_ingredients(user_id: int, list_name: str = None):
 	if current_user.id != user_id:
 		return "Forbidden: You can only view your own items.", 403
-	list_ingredients: list = database.Select.get_ListIngredients_by_Persons_id(user_id)
-	return render_template("ViewItems.j2", user_id=user_id, list_ingredients=list_ingredients, current_page="view_items")
+	all_lists = database.Select.get_Lists_by_Persons_id(user_id)
+	# Ensure Grocery list exists (create if user has no lists)
+	if not all_lists:
+		get_or_create_list("Grocery list", user_id)
+		all_lists = database.Select.get_Lists_by_Persons_id(user_id)
+	# If no list_name, default to Grocery list
+	if not list_name and all_lists:
+		grocery = next((l for l in all_lists if l.name == "Grocery list"), None)
+		selected_list = grocery or all_lists[0]
+	else:
+		selected_list = next((l for l in all_lists if l.name == list_name), None) if list_name else (all_lists[0] if all_lists else None)
+	list_ingredients = []
+	if selected_list:
+		list_ingredients = database.Select.get_ListIngredients_by_Lists_id(selected_list.id, user_id)
+	return render_template("ViewItems.j2", user_id=user_id, all_lists=all_lists, selected_list=selected_list, list_ingredients=list_ingredients, current_page="view_items")
 
 
 @app.route("/Pantry/<int:user_id>")
@@ -235,11 +262,82 @@ def delete_pantry_item(item_id: int):
 	return redirect(redirect_to)
 
 
+@app.route("/ListItem/<int:item_id>", methods=["GET", "POST"])
+@login_required
+def list_item(item_id: int):
+	row = database.Select.get_ListIngredient_by_id(item_id, current_user.id)
+	if row is None:
+		return "Item not found or you don't have access to it.", 404
+	list_ingredient, ingredient, lst = row
+	if request.method == "POST":
+		action = request.form.get("action")
+		if action == "delete":
+			soft_delete_list_ingredient(item_id)
+			return redirect(url_for("display_ingredients", user_id=current_user.id, list_name=lst.name))
+		if action == "update":
+			try:
+				quantity_str = request.form.get("quantity", str(list_ingredient.quantity)).strip()
+				quantity = max(1, int(quantity_str))
+			except (ValueError, TypeError):
+				quantity = list_ingredient.quantity
+			update_list_ingredient(item_id, quantity)
+			return redirect(url_for("list_item", item_id=item_id))
+	# Refresh after possible update
+	row = database.Select.get_ListIngredient_by_id(item_id, current_user.id)
+	if row is None:
+		return redirect(url_for("display_ingredients", user_id=current_user.id))
+	list_ingredient, ingredient, lst = row
+
+	def _fmt_date(d):
+		if d is None:
+			return ""
+		if hasattr(d, "strftime"):
+			return d.strftime("%m/%d/%Y")
+		s = str(d)[:10]
+		if len(s) == 10 and s[4] == "-" and s[7] == "-":
+			return f"{s[5:7]}/{s[8:10]}/{s[:4]}"
+		return s
+
+	date_added_str = _fmt_date(getattr(list_ingredient, "date_added", None))
+	return render_template(
+		"ListItem.j2",
+		list_ingredient=list_ingredient,
+		ingredient=ingredient,
+		list=lst,
+		item_id=item_id,
+		date_added_str=date_added_str,
+		current_page="view_items",
+	)
+
+
+@app.route("/DeleteListItem/<int:item_id>", methods=["POST"])
+@login_required
+def delete_list_item(item_id: int):
+	row = database.Select.get_ListIngredient_by_id(item_id, current_user.id)
+	if row is None:
+		return "Item not found or you don't have access to it.", 404
+	_, _, lst = row
+	soft_delete_list_ingredient(item_id)
+	redirect_to = request.form.get("redirect_to") or url_for("display_ingredients", user_id=current_user.id, list_name=lst.name)
+	return redirect(redirect_to)
+
+
 @app.route("/Logout")
 @login_required
 def logout():
 	logout_user()
 	return redirect("/Login")
+
+
+def _get_destination_options(user_id: int):
+	"""Build destination options: My pantry, Grocery list, custom lists, Add new."""
+	lists = database.Select.get_Lists_by_Persons_id(user_id)
+	# Always include Grocery list; add custom lists that aren't Grocery list
+	custom_names = {lst.name for lst in lists if lst.name != "Grocery list"}
+	options = [("pantry", "My pantry"), ("Grocery list", "Grocery list")]
+	options.extend((name, name) for name in sorted(custom_names))
+	options.append(("__new__", "➕ Add new list…"))
+	return options
 
 
 @app.route("/AddListItem", methods=["GET", "POST"])
@@ -250,32 +348,45 @@ def add_list_item(user_id: int = None):
 	if user_id is not None and current_user.id != user_id:
 		return "Forbidden: You can only add items to your own lists.", 403
 	user_id = current_user.id
+	dest_options = _get_destination_options(user_id)
 
 	if request.method == "POST":
 		try:
-			list_name = request.form.get("list_name", "Shopping List").strip()
+			destination = request.form.get("destination", "Grocery list").strip()
+			new_list_name = request.form.get("new_list_name", "").strip()
+			if destination == "__new__":
+				destination = new_list_name or "Grocery list"
 			item_name = request.form.get("item_name", "").strip()
 			quantity = int(request.form.get("quantity", 1))
 			if not item_name:
 				raise ValueError("Item name is required.")
-			list_id = get_or_create_list(list_name, user_id)
+
 			ingredient_id = get_or_create_ingredient(item_name, user_id)
-			from datetime import datetime
-			create_list_ingredient(quantity, datetime.utcnow(), ingredient_id, list_id)
-			return redirect(f"/DisplayIngredients/{user_id}")
+			now = datetime.utcnow()
+
+			if destination == "pantry":
+				create_inventory_ingredient(quantity, now, None, ingredient_id, None)
+				return redirect(url_for("pantry", user_id=user_id))
+			else:
+				list_id = get_or_create_list(destination, user_id)
+				create_list_ingredient(quantity, now, ingredient_id, list_id)
+				return redirect(url_for("display_ingredients", user_id=user_id, list_name=destination))
 		except ValueError as error:
-			return render_template("AddListItem.j2", user_id=user_id, error=str(error), current_page="add_items")
+			return render_template("AddListItem.j2", user_id=user_id, dest_options=dest_options, default_destination=request.form.get("destination", "Grocery list"), error=str(error), current_page="add_items")
 		except Exception as error:
 			traceback.print_exc()
-			return render_template("AddListItem.j2", user_id=user_id, error=str(error), current_page="add_items")
-	return render_template("AddListItem.j2", user_id=user_id, current_page="add_items")
+			return render_template("AddListItem.j2", user_id=user_id, dest_options=dest_options, default_destination=request.form.get("destination", "Grocery list"), error=str(error), current_page="add_items")
+	default_destination = request.args.get("for_list", "Grocery list")
+	return render_template("AddListItem.j2", user_id=user_id, dest_options=dest_options, default_destination=default_destination, current_page="add_items")
 
 
 # ————————————————————————————————— Scan pantry item (barcode) ———————————————————————————————— #
 @app.route("/ScanPantryItem", methods=["GET"])
 @login_required
 def scan_pantry_item():
-	return render_template("ScanPantryItem.j2", current_page="scan_pantry")
+	dest_options = _get_destination_options(current_user.id)
+	default_destination = request.args.get("for_list", "Grocery list")
+	return render_template("ScanPantryItem.j2", dest_options=dest_options, default_destination=default_destination, current_page="scan_pantry")
 
 
 @app.route("/AddPantryItem", methods=["POST"])
@@ -285,6 +396,10 @@ def add_pantry_item():
 		item_name = request.form.get("item_name", "").strip()
 		quantity_str = request.form.get("quantity", "1").strip()
 		expiration_date_str = request.form.get("expiration_date", "").strip()
+		destination = request.form.get("destination", "pantry").strip()
+		new_list_name = request.form.get("new_list_name", "").strip()
+		if destination == "__new__":
+			destination = new_list_name or "Grocery list"
 		if not item_name:
 			return jsonify({"success": False, "error": "Item name is required."}), 400
 		try:
@@ -293,21 +408,28 @@ def add_pantry_item():
 			quantity = 1
 		user_id = current_user.id
 		ingredient_id = get_or_create_ingredient(item_name, user_id)
-		date_purchased = datetime.utcnow()
-		date_expires = None
-		if expiration_date_str:
-			try:
-				date_expires = datetime.strptime(expiration_date_str, "%Y-%m-%d")
-			except ValueError:
-				date_expires = None
-		existing_id = find_matching_inventory_item(ingredient_id, date_expires)
-		if existing_id is not None:
-			add_inventory_count(existing_id, quantity)
-			msg = f"Added {quantity} to existing '{item_name}' in your pantry."
+		now = datetime.utcnow()
+
+		if destination == "pantry":
+			date_expires = None
+			if expiration_date_str:
+				try:
+					date_expires = datetime.strptime(expiration_date_str, "%Y-%m-%d")
+				except ValueError:
+					date_expires = None
+			existing_id = find_matching_inventory_item(ingredient_id, date_expires)
+			if existing_id is not None:
+				add_inventory_count(existing_id, quantity)
+				msg = f"Added {quantity} to existing '{item_name}' in your pantry."
+			else:
+				create_inventory_ingredient(quantity, now, date_expires, ingredient_id, None)
+				msg = f"Added {quantity} '{item_name}' to your pantry." if quantity > 1 else f"Added '{item_name}' to your pantry."
+			return jsonify({"success": True, "message": msg, "redirect": url_for("pantry", user_id=user_id)})
 		else:
-			create_inventory_ingredient(quantity, date_purchased, date_expires, ingredient_id, None)
-			msg = f"Added {quantity} '{item_name}' to your pantry." if quantity > 1 else f"Added '{item_name}' to your pantry."
-		return jsonify({"success": True, "message": msg})
+			list_id = get_or_create_list(destination, user_id)
+			create_list_ingredient(quantity, now, ingredient_id, list_id)
+			msg = f"Added {quantity} '{item_name}' to {destination}." if quantity > 1 else f"Added '{item_name}' to {destination}."
+			return jsonify({"success": True, "message": msg, "redirect": url_for("display_ingredients", user_id=user_id, list_name=destination)})
 	except Exception as error:
 		traceback.print_exc()
 		return jsonify({"success": False, "error": str(error)}), 500

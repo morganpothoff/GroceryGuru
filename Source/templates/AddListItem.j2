@@ -4,18 +4,27 @@
 
 {% block content %}
 	<div class="card">
-		<h1>Add item to list</h1>
+		<h1>Add item</h1>
+		<h2>Choose where to add this item</h2>
 
 		<div class="action-buttons" style="margin-bottom: 1.5rem;">
-			<a href="/ScanPantryItem" class="btn btn-primary">Scan item</a>
+			<a href="{{ url_for('scan_pantry_item', for_list=default_destination|default('Grocery list')) }}" class="btn btn-primary">Scan item</a>
 		</div>
 
 		{% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
 
 		<form method="POST" action="/AddListItem">
 			<div class="form-group">
-				<label for="list_name">List name</label>
-				<input type="text" id="list_name" name="list_name" value="{{ request.form.list_name or 'Shopping List' }}" required>
+				<label for="destination">Add to</label>
+				<select id="destination" name="destination" required>
+					{% for value, label in dest_options %}
+						<option value="{{ value }}" {% if request.form.destination == value or (not request.form.destination and value == (default_destination|default('Grocery list'))) %}selected{% endif %}>{{ label }}</option>
+					{% endfor %}
+				</select>
+			</div>
+			<div class="form-group" id="new-list-group" style="display: none;">
+				<label for="new_list_name">New list name</label>
+				<input type="text" id="new_list_name" name="new_list_name" value="{{ request.form.new_list_name or '' }}" placeholder="e.g. Birthday Party Shopping">
 			</div>
 			<div class="form-group">
 				<label for="item_name">Item name</label>
@@ -28,4 +37,18 @@
 			<button type="submit" class="btn btn-primary">Add item</button>
 		</form>
 	</div>
+
+	<script>
+	(function() {
+		var dest = document.getElementById('destination');
+		var newGroup = document.getElementById('new-list-group');
+		if (dest && newGroup) {
+			function toggle() {
+				newGroup.style.display = dest.value === '__new__' ? 'block' : 'none';
+			}
+			dest.addEventListener('change', toggle);
+			toggle();
+		}
+	})();
+	</script>
 {% endblock %}
