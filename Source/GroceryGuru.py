@@ -579,9 +579,13 @@ def recipe_detail(recipe_id: int):
 	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
 	if recipe is None:
 		return redirect(url_for("recipes_index"))
+	ingredients_list = [ln.strip() for ln in (recipe.ingredients or "").splitlines() if ln.strip()]
+	steps_list = [ln.strip() for ln in (recipe.steps or "").splitlines() if ln.strip()]
 	return render_template(
 		"Recipe.j2",
 		recipe=recipe,
+		ingredients_list=ingredients_list,
+		steps_list=steps_list,
 		categories=RECIPE_CATEGORIES,
 		current_page="recipes",
 	)

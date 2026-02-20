@@ -28,11 +28,33 @@
 			</p>
 			<div class="recipe-section">
 				<h3>Ingredients</h3>
-				<pre class="recipe-block">{{ recipe.ingredients or '(none)' }}</pre>
+				<ul class="recipe-checklist" id="recipe-ingredients-list">
+					{% for line in ingredients_list %}
+					<li class="recipe-check-item">
+						<label class="recipe-check-label">
+							<input type="checkbox" class="recipe-checkbox" data-type="ingredients" data-index="{{ loop.index0 }}">
+							<span class="recipe-check-text">{{ line }}</span>
+						</label>
+					</li>
+					{% else %}
+					<li class="recipe-check-empty"><span class="text-muted">(none)</span></li>
+					{% endfor %}
+				</ul>
 			</div>
 			<div class="recipe-section">
 				<h3>Steps</h3>
-				<pre class="recipe-block">{{ recipe.steps or '(none)' }}</pre>
+				<ul class="recipe-checklist" id="recipe-steps-list">
+					{% for line in steps_list %}
+					<li class="recipe-check-item">
+						<label class="recipe-check-label">
+							<input type="checkbox" class="recipe-checkbox" data-type="steps" data-index="{{ loop.index0 }}">
+							<span class="recipe-check-text">{{ line }}</span>
+						</label>
+					</li>
+					{% else %}
+					<li class="recipe-check-empty"><span class="text-muted">(none)</span></li>
+					{% endfor %}
+				</ul>
 			</div>
 			<div class="recipe-section">
 				<h3>Notes</h3>
@@ -91,6 +113,9 @@
 	</div>
 	<script>
 	(function() {
+		var recipeId = {{ recipe.id }};
+		var storageKey = function(type) { return 'recipe-' + recipeId + '-' + type; };
+
 		var view = document.getElementById('recipe-view');
 		var form = document.getElementById('recipe-edit-form');
 		var viewActions = document.getElementById('recipe-view-actions');
@@ -106,6 +131,33 @@
 			view.style.display = 'block';
 			form.style.display = 'none';
 			viewActions.style.display = 'block';
+		});
+
+		// Restore checkbox state from localStorage
+		function loadChecks(type) {
+			try {
+				var raw = localStorage.getItem(storageKey(type));
+				if (raw) {
+					var idx = JSON.parse(raw);
+					document.querySelectorAll('.recipe-checkbox[data-type="' + type + '"]').forEach(function(cb) {
+						cb.checked = idx.indexOf(parseInt(cb.dataset.index, 10)) >= 0;
+					});
+				}
+			} catch (e) {}
+		}
+		loadChecks('ingredients');
+		loadChecks('steps');
+
+		// Save checkbox state to localStorage
+		document.querySelectorAll('.recipe-checkbox').forEach(function(cb) {
+			cb.addEventListener('change', function() {
+				var type = this.dataset.type;
+				var checked = [];
+				document.querySelectorAll('.recipe-checkbox[data-type="' + type + '"]').forEach(function(c) {
+					if (c.checked) checked.push(parseInt(c.dataset.index, 10));
+				});
+				try { localStorage.setItem(storageKey(type), JSON.stringify(checked)); } catch (e) {}
+			});
 		});
 	})();
 	</script>
