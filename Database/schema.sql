@@ -66,3 +66,18 @@ WHEN NEW."is_deleted" = 1
 BEGIN
 	UPDATE "InventoryIngredients" SET "is_deleted" = 1 WHERE "Ingredients.id" = NEW."id";
 END;
+
+-- Recipes: ingredients, steps, notes, source URL, category (Desserts, Dinners, Breakfasts, or empty for Others)
+CREATE TABLE IF NOT EXISTS "Recipes" (
+	"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	"title" TEXT NOT NULL,
+	"ingredients" TEXT NOT NULL DEFAULT '',
+	"steps" TEXT NOT NULL DEFAULT '',
+	"special_notes" TEXT DEFAULT '',
+	"source_url" TEXT,
+	"category" TEXT DEFAULT '',
+	"Persons.id" INTEGER NOT NULL,
+	"is_deleted" INTEGER NOT NULL DEFAULT 0,
+	"date_added" TEXT NOT NULL DEFAULT (datetime('now')),
+	FOREIGN KEY ("Persons.id") REFERENCES "Persons"("id")
+);

@@ -1,0 +1,30 @@
+{% extends "Base.j2" %}
+
+{% block title %}Recipes — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>Recipes</h1>
+		<h2>Browse by category</h2>
+		<ul class="recipe-category-list">
+			{% for cat in categories %}
+				<li>
+					<a href="{{ url_for('recipes_by_category', category=cat) }}" class="recipe-category-link">
+						<span class="recipe-category-name">{{ cat }}</span>
+						<span class="recipe-category-count">({{ category_counts.get(cat, 0) }})</span>
+					</a>
+				</li>
+			{% endfor %}
+			<li>
+				<a href="{{ url_for('recipes_by_category', category='Others') }}" class="recipe-category-link">
+					<span class="recipe-category-name">Others</span>
+					<span class="recipe-category-count">({{ category_counts.get('Others', 0) }})</span>
+				</a>
+				<span class="text-muted" style="font-size: 0.85rem;">— recipes that don't match typical categories</span>
+			</li>
+		</ul>
+		<div class="nav-links">
+			<a href="{{ url_for('add_recipe') }}">Add recipe</a>
+		</div>
+	</div>
+{% endblock %}

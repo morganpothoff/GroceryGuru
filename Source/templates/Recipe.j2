@@ -1,0 +1,112 @@
+{% extends "Base.j2" %}
+
+{% block title %}{{ recipe.title }} — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<p style="margin: 0 0 1rem 0;">
+			<a href="{{ url_for('recipes_index') }}">← Recipes</a>
+			{% if recipe.category %}
+				| <a href="{{ url_for('recipes_by_category', category=recipe.category) }}">{{ recipe.category }}</a>
+			{% else %}
+				| <a href="{{ url_for('recipes_by_category', category='Others') }}">Others</a>
+			{% endif %}
+		</p>
+		<h1 id="recipe-title-display">{{ recipe.title }}</h1>
+		<div id="recipe-view-actions" style="margin-bottom: 1rem;">
+			<button type="button" id="btn-edit-recipe" class="btn btn-primary">Edit</button>
+		</div>
+
+		<div id="recipe-view" class="recipe-profile-view">
+			<p class="recipe-source">
+				<strong>Source:</strong>
+				{% if recipe.source_url %}
+					<a href="{{ recipe.source_url }}" target="_blank" rel="noopener noreferrer">{{ recipe.source_url }}</a>
+				{% else %}
+					<span class="text-muted">(none)</span>
+				{% endif %}
+			</p>
+			<div class="recipe-section">
+				<h3>Ingredients</h3>
+				<pre class="recipe-block">{{ recipe.ingredients or '(none)' }}</pre>
+			</div>
+			<div class="recipe-section">
+				<h3>Steps</h3>
+				<pre class="recipe-block">{{ recipe.steps or '(none)' }}</pre>
+			</div>
+			<div class="recipe-section">
+				<h3>Notes</h3>
+				<pre class="recipe-block">{{ recipe.special_notes or '(none)' }}</pre>
+			</div>
+		</div>
+
+		<form id="recipe-edit-form" method="post" action="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="recipe-form" style="display: none;">
+			<input type="hidden" name="action" value="update">
+			<div class="form-group">
+				<label for="title">Title</label>
+				<input type="text" id="title" name="title" value="{{ recipe.title }}" required>
+			</div>
+			<div class="form-group">
+				<label for="source_url">Original link <span class="text-muted">(optional)</span></label>
+				<input type="url" id="source_url" name="source_url" value="{{ recipe.source_url or '' }}" placeholder="https://...">
+			</div>
+			<div class="form-group">
+				<label for="category">Category <span class="text-muted">(optional, leave empty for Others)</span></label>
+				<select id="category" name="category">
+					<option value="">Others</option>
+					{% for cat in categories %}
+						<option value="{{ cat }}" {% if recipe.category == cat %}selected{% endif %}>{{ cat }}</option>
+					{% endfor %}
+				</select>
+			</div>
+			<div class="form-group">
+				<label for="ingredients">Ingredients</label>
+				<textarea id="ingredients" name="ingredients" rows="8">{{ recipe.ingredients or '' }}</textarea>
+			</div>
+			<div class="form-group">
+				<label for="steps">Steps</label>
+				<textarea id="steps" name="steps" rows="10">{{ recipe.steps or '' }}</textarea>
+			</div>
+			<div class="form-group">
+				<label for="special_notes">Special notes <span class="text-muted">(optional)</span></label>
+				<textarea id="special_notes" name="special_notes" rows="3">{{ recipe.special_notes or '' }}</textarea>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="btn btn-primary">Save changes</button>
+				<button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancel</button>
+			</div>
+		</form>
+
+		<div class="recipe-meta" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+			<form method="post" action="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="delete-form" onsubmit="return confirm('Are you sure you want to delete this recipe?');">
+				<input type="hidden" name="action" value="delete">
+				<button type="submit" class="btn btn-danger" aria-label="Delete recipe">
+					<svg class="trash-icon" viewBox="0 0 24 24" width="20" height="20">
+						<path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+					</svg>
+					Delete recipe
+				</button>
+			</form>
+		</div>
+	</div>
+	<script>
+	(function() {
+		var view = document.getElementById('recipe-view');
+		var form = document.getElementById('recipe-edit-form');
+		var viewActions = document.getElementById('recipe-view-actions');
+		var btnEdit = document.getElementById('btn-edit-recipe');
+		var btnCancel = document.getElementById('btn-cancel-edit');
+		if (!view || !form) return;
+		btnEdit.addEventListener('click', function() {
+			view.style.display = 'none';
+			form.style.display = 'block';
+			viewActions.style.display = 'none';
+		});
+		btnCancel.addEventListener('click', function() {
+			view.style.display = 'block';
+			form.style.display = 'none';
+			viewActions.style.display = 'block';
+		});
+	})();
+	</script>
+{% endblock %}

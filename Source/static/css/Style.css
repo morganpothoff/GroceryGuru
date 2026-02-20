@@ -323,7 +323,8 @@ input[type="text"],
 input[type="password"],
 input[type="email"],
 input[type="number"],
-input[type="date"] {
+input[type="date"],
+input[type="url"] {
 	width: 100%;
 	padding: 0.75rem 1rem;
 	font-size: 1rem;
@@ -655,4 +656,51 @@ a:hover {
 #qr-shaded-region {
 	border-width: 2px !important;
 	border-color: #e63946 !important;
+}
+
+/* --- Recipes --- */
+.recipe-category-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.recipe-category-list li {
+	margin-bottom: 0.5rem;
+}
+
+.recipe-category-link {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.25rem;
+}
+
+.recipe-category-name {
+	font-weight: 600;
+}
+
+.recipe-category-count {
+	color: var(--text-muted);
+	font-size: 0.9rem;
+}
+
+.recipe-block {
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	font-family: inherit;
+	font-size: 0.95rem;
+	line-height: 1.6;
+	margin: 0 0 1rem 0;
+	padding: 1rem;
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+
+.recipe-source {
+	margin-bottom: 1rem;
+}
+
+.recipe-source a {
+	word-break: break-all;
 }

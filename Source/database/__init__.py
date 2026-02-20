@@ -46,8 +46,34 @@ def _migrate_add_notes_if_needed():
 			raw.execute("ALTER TABLE InventoryIngredients ADD COLUMN notes TEXT")
 
 
+def _migrate_recipes_table_if_needed():
+	"""Create Recipes table if it doesn't exist."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Recipes'")
+		if cur.fetchone() is None:
+			raw.execute("""
+				CREATE TABLE "Recipes" (
+					"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+					"title" TEXT NOT NULL,
+					"ingredients" TEXT NOT NULL DEFAULT '',
+					"steps" TEXT NOT NULL DEFAULT '',
+					"special_notes" TEXT DEFAULT '',
+					"source_url" TEXT,
+					"category" TEXT DEFAULT '',
+					"Persons.id" INTEGER NOT NULL,
+					"is_deleted" INTEGER NOT NULL DEFAULT 0,
+					"date_added" TEXT NOT NULL DEFAULT (datetime('now')),
+					FOREIGN KEY ("Persons.id") REFERENCES "Persons"("id")
+				)
+			""")
+
+
 _init_schema_if_needed()
 _migrate_add_notes_if_needed()
+_migrate_recipes_table_if_needed()
 
 # reflect the tables
 Base = automap_base()
@@ -61,6 +87,7 @@ Lists = Base.classes.Lists
 Ingredients = Base.classes.Ingredients
 ListIngredients = Base.classes.ListIngredients
 InventoryIngredients = Base.classes.InventoryIngredients
+Recipes = Base.classes.Recipes
 
 
 def get_user_count():
@@ -233,5 +260,57 @@ def soft_delete_list_ingredient(list_ingredient_id: int):
 	tbl = ListIngredients.__table__
 	with Session(engine) as session:
 		stmt = update(tbl).where(tbl.c.id == list_ingredient_id).values(is_deleted=True)
+		session.execute(stmt)
+		session.commit()
+
+
+# ————————————————————————————————— Recipes ———————————————————————————————— #
+
+def create_recipe(title: str, Persons_id: int, ingredients: str = "", steps: str = "", special_notes: str = None, source_url: str = None, category: str = None):
+	"""Create a new recipe."""
+	with Session(engine) as session:
+		stmt = insert(Recipes.__table__).values(**{
+			"title": title,
+			"ingredients": ingredients or "",
+			"steps": steps or "",
+			"special_notes": (special_notes or "").strip() or None,
+			"source_url": (source_url or "").strip() or None,
+			"category": (category or "").strip() or None,
+			"Persons.id": Persons_id,
+		})
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
+
+
+def update_recipe(recipe_id: int, title: str = None, ingredients: str = None, steps: str = None, special_notes: str = None, source_url: str = None, category: str = None):
+	"""Update recipe fields. Pass None to leave unchanged."""
+	tbl = Recipes.__table__
+	updates = {}
+	if title is not None:
+		updates["title"] = title
+	if ingredients is not None:
+		updates["ingredients"] = ingredients
+	if steps is not None:
+		updates["steps"] = steps
+	if special_notes is not None:
+		updates["special_notes"] = (special_notes or "").strip() or None
+	if source_url is not None:
+		updates["source_url"] = (source_url or "").strip() or None
+	if category is not None:
+		updates["category"] = (category or "").strip() or None
+	if not updates:
+		return
+	with Session(engine) as session:
+		stmt = update(tbl).where(tbl.c.id == recipe_id).values(**updates)
+		session.execute(stmt)
+		session.commit()
+
+
+def soft_delete_recipe(recipe_id: int):
+	"""Soft-delete a recipe."""
+	tbl = Recipes.__table__
+	with Session(engine) as session:
+		stmt = update(tbl).where(tbl.c.id == recipe_id).values(is_deleted=True)
 		session.execute(stmt)
 		session.commit()

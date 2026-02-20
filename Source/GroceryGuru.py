@@ -22,7 +22,9 @@ from database import (
 	find_matching_inventory_item, add_inventory_count,
 	update_inventory_ingredient, soft_delete_inventory_ingredient,
 	update_list_ingredient, soft_delete_list_ingredient,
+	create_recipe, update_recipe, soft_delete_recipe,
 )
+import recipe_extractor
 
 
 app = Flask(__name__, static_url_path="/static")
@@ -433,6 +435,167 @@ def add_pantry_item():
 	except Exception as error:
 		traceback.print_exc()
 		return jsonify({"success": False, "error": str(error)}), 500
+
+
+# ————————————————————————————————— Recipes ———————————————————————————————— #
+RECIPE_CATEGORIES = ["Desserts", "Dinners", "Breakfasts"]
+
+
+@app.route("/Recipes")
+@login_required
+def recipes_index():
+	"""Recipes home: show category links (Desserts, Dinners, Breakfasts, Others)."""
+	all_recipes = database.Select.get_Recipes_by_Persons_id(current_user.id)
+	# Build category counts
+	category_counts = {}
+	for cat in RECIPE_CATEGORIES:
+		category_counts[cat] = sum(1 for r in all_recipes if (r.category or "").strip() == cat)
+	category_counts["Others"] = sum(1 for r in all_recipes if not (r.category or "").strip())
+	return render_template(
+		"Recipes.j2",
+		categories=RECIPE_CATEGORIES,
+		category_counts=category_counts,
+		current_page="recipes",
+	)
+
+
+@app.route("/Recipes/Add", methods=["GET", "POST"])
+@login_required
+def add_recipe():
+	"""Add a recipe: manual form or import from URL."""
+	if request.method == "POST":
+		source_url = request.form.get("source_url", "").strip()
+		title = request.form.get("title", "").strip()
+		ingredients = request.form.get("ingredients", "")
+		steps = request.form.get("steps", "")
+		special_notes = request.form.get("special_notes", "")
+		category = request.form.get("category", "").strip()
+		# Import from URL when URL is provided and no manual title (user expects auto-import)
+		if source_url and not title:
+			try:
+				from urllib.parse import urlparse
+				parsed = urlparse(source_url)
+				if not parsed.scheme:
+					source_url = "https://" + source_url
+				data = recipe_extractor.extract_recipe_from_url(source_url)
+				if data:
+					rid = create_recipe(
+						title=data["title"],
+						Persons_id=current_user.id,
+						ingredients=data.get("ingredients", ""),
+						steps=data.get("steps", ""),
+						special_notes=data.get("special_notes", ""),
+						source_url=data.get("source_url", source_url),
+						category=data.get("category", ""),
+					)
+					return redirect(url_for("recipe_detail", recipe_id=rid))
+				# Extraction failed: show form with error and pre-filled URL
+				return render_template(
+					"AddRecipe.j2",
+					error="Could not extract recipe from this URL. Add it manually below.",
+					source_url=source_url,
+					title="",
+					ingredients="",
+					steps="",
+					special_notes="",
+					category="",
+					current_page="recipes",
+				)
+			except Exception as e:
+				traceback.print_exc()
+				return render_template(
+					"AddRecipe.j2",
+					error=f"Could not fetch URL: {e}.",
+					source_url=source_url,
+					title="",
+					ingredients="",
+					steps="",
+					special_notes="",
+					category="",
+					current_page="recipes",
+				)
+		# Manual add
+		if not title:
+			return render_template(
+				"AddRecipe.j2",
+				error="Recipe title is required.",
+				source_url=source_url,
+				ingredients=ingredients,
+				steps=steps,
+				special_notes=special_notes,
+				category=category,
+				current_page="recipes",
+			), 400
+		rid = create_recipe(
+			title=title,
+			Persons_id=current_user.id,
+			ingredients=ingredients,
+			steps=steps,
+			special_notes=special_notes or None,
+			source_url=source_url or None,
+			category=category or None,
+		)
+		return redirect(url_for("recipe_detail", recipe_id=rid))
+	return render_template("AddRecipe.j2", current_page="recipes")
+
+
+@app.route("/Recipes/<category>")
+@login_required
+def recipes_by_category(category: str):
+	"""List recipes in a category (Desserts, Dinners, Breakfasts, Others)."""
+	recipes = database.Select.get_Recipes_by_category(current_user.id, category)
+	display_name = category if category and category != "Others" else "Others"
+	return render_template(
+		"RecipesCategory.j2",
+		category=display_name,
+		recipes=recipes,
+		current_page="recipes",
+	)
+
+
+@app.route("/Recipe/<int:recipe_id>", methods=["GET", "POST"])
+@login_required
+def recipe_detail(recipe_id: int):
+	"""Recipe profile: view, edit, and delete."""
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return "Recipe not found or you don't have access to it.", 404
+	if request.method == "POST":
+		action = request.form.get("action")
+		if action == "delete":
+			soft_delete_recipe(recipe_id)
+			return redirect(url_for("recipes_index"))
+		if action == "update":
+			update_recipe(
+				recipe_id,
+				title=request.form.get("title", "").strip(),
+				ingredients=request.form.get("ingredients", ""),
+				steps=request.form.get("steps", ""),
+				special_notes=request.form.get("special_notes", "").strip() or None,
+				source_url=request.form.get("source_url", "").strip() or None,
+				category=request.form.get("category", "").strip() or None,
+			)
+			return redirect(url_for("recipe_detail", recipe_id=recipe_id))
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return redirect(url_for("recipes_index"))
+	return render_template(
+		"Recipe.j2",
+		recipe=recipe,
+		categories=RECIPE_CATEGORIES,
+		current_page="recipes",
+	)
+
+
+@app.route("/DeleteRecipe/<int:recipe_id>", methods=["POST"])
+@login_required
+def delete_recipe(recipe_id: int):
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return "Recipe not found or you don't have access to it.", 404
+	soft_delete_recipe(recipe_id)
+	redirect_to = request.form.get("redirect_to") or url_for("recipes_index")
+	return redirect(redirect_to)
 
 
 if __name__ == "__main__":
