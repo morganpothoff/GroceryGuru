@@ -9,8 +9,9 @@
 		<h2>Welcome back!</h2>
 
 		<div class="action-buttons">
-			<a href="/AddListItem" class="btn btn-primary">Add item to list</a>
+			<a href="/AddListItem" class="btn btn-primary">Add item</a>
 			<a href="/Pantry/{{ current_user.id }}" class="btn btn-primary">My pantry</a>
+			<a href="/ShoppingList/{{ current_user.id }}" class="btn btn-primary">Shopping list</a>
 		</div>
 	</div>
 {% endblock %}

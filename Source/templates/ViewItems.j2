@@ -1,20 +1,86 @@
 {% extends "Base.j2" %}
 
-{% block title %}My items — Grocery Guru{% endblock %}
+{% block title %}{% if selected_list %}{{ selected_list.name }}{% else %}Shopping list{% endif %} — Grocery Guru{% endblock %}
 
 {% block content %}
 	<div class="card">
-		<h1>My grocery list</h1>
-		<h2>Current items</h2>
+		<h1>Shopping list</h1>
+		<h2>
+			{% if all_lists %}
+				<label for="list-select" class="sr-only">Select list</label>
+				<select id="list-select" class="list-dropdown" data-reset-value="{% if selected_list %}{{ url_for('display_ingredients', user_id=user_id, list_name=selected_list.name) }}{% endif %}">
+					{% for lst in all_lists %}
+						<option value="{{ url_for('display_ingredients', user_id=user_id, list_name=lst.name) }}" {% if selected_list and selected_list.id == lst.id %}selected{% endif %}>{{ lst.name }}</option>
+					{% endfor %}
+					<option value="__new__">➕ Add new list…</option>
+				</select>
+			{% else %}
+				No lists yet
+			{% endif %}
+		</h2>
 
-		{% if list_ingredients %}
-			<ul class="item-list">
-				{% for list_ingredient, ingredient in list_ingredients %}
-					<li>{{ ingredient.name }}</li>
-				{% endfor %}
-			</ul>
-		{% else %}
-			<p class="text-muted">No items yet. <a href="/AddListItem">Add your first item</a>.</p>
+		<div id="new-list-form" class="form-inline" style="display: none; margin-top: 1rem;">
+			<form method="POST" action="{{ url_for('create_list_route') }}" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+				<input type="text" name="list_name" placeholder="e.g. Birthday Party Shopping" required class="form-inline-input" style="flex: 1; min-width: 12rem;">
+				<button type="submit" class="btn btn-primary">Create list</button>
+				<button type="button" id="cancel-new-list" class="btn btn-secondary">Cancel</button>
+			</form>
+		</div>
+
+		{% if all_lists and not selected_list %}
+			<p class="text-muted">Select a list above or add a new one.</p>
+		{% elif selected_list %}
+			{% if list_ingredients %}
+				<ul class="item-list">
+					{% for list_ingredient, ingredient in list_ingredients %}
+						<li class="item-list-row">
+							<a href="{{ url_for('list_item', item_id=list_ingredient.id) }}" class="item-list-link">
+								<span class="item-name">{{ ingredient.name }}</span>
+								<span class="item-qty">×{{ list_ingredient.quantity }}</span>
+							</a>
+							<form method="post" action="{{ url_for('delete_list_item', item_id=list_ingredient.id) }}" class="item-delete-form" onsubmit="return confirm('Delete this item from {{ selected_list.name }}?');">
+								<input type="hidden" name="redirect_to" value="{{ url_for('display_ingredients', user_id=user_id, list_name=selected_list.name) }}">
+								<button type="submit" class="btn btn-danger btn-sm" aria-label="Delete {{ ingredient.name }}">
+									<svg class="trash-icon" viewBox="0 0 24 24" width="18" height="18">
+										<path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+									</svg>
+								</button>
+							</form>
+						</li>
+					{% endfor %}
+				</ul>
+			{% else %}
+				<p class="text-muted">No items in {{ selected_list.name }} yet. <a href="{{ url_for('add_list_item', for_list=selected_list.name) }}">Add your first item</a>.</p>
+			{% endif %}
+		{% elif not all_lists %}
+			<p class="text-muted">No lists yet. Create one above or <a href="/AddListItem">add an item</a> to create a Grocery list.</p>
 		{% endif %}
+
+		<div class="nav-links" style="margin-top: 1rem;">
+			<a href="{{ url_for('add_list_item', for_list=selected_list.name) if selected_list else url_for('add_list_item') }}">Add item</a>
+		</div>
 	</div>
+
+	<script>
+	(function() {
+		var sel = document.getElementById('list-select');
+		var form = document.getElementById('new-list-form');
+		var cancelBtn = document.getElementById('cancel-new-list');
+		if (!sel) return;
+		sel.addEventListener('change', function() {
+			if (this.value === '__new__') {
+				form.style.display = 'block';
+				if (form.querySelector('input[name="list_name"]')) form.querySelector('input[name="list_name"]').focus();
+			} else if (this.value) {
+				window.location.href = this.value;
+			}
+		});
+		if (cancelBtn) cancelBtn.addEventListener('click', function() {
+			form.style.display = 'none';
+			var resetVal = sel.getAttribute('data-reset-value');
+			if (resetVal) sel.value = resetVal;
+			else if (sel.options.length > 1) sel.selectedIndex = 0;
+		});
+	})();
+	</script>
 {% endblock %}

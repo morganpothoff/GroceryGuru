@@ -217,3 +217,21 @@ def soft_delete_inventory_ingredient(inventory_id: int):
 		stmt = update(tbl).where(tbl.c.id == inventory_id).values(is_deleted=True)
 		session.execute(stmt)
 		session.commit()
+
+
+def update_list_ingredient(list_ingredient_id: int, quantity: int):
+	"""Update a list item's quantity."""
+	tbl = ListIngredients.__table__
+	with Session(engine) as session:
+		stmt = update(tbl).where(tbl.c.id == list_ingredient_id).values(quantity=max(1, quantity))
+		session.execute(stmt)
+		session.commit()
+
+
+def soft_delete_list_ingredient(list_ingredient_id: int):
+	"""Soft-delete a list item by setting is_deleted=True."""
+	tbl = ListIngredients.__table__
+	with Session(engine) as session:
+		stmt = update(tbl).where(tbl.c.id == list_ingredient_id).values(is_deleted=True)
+		session.execute(stmt)
+		session.commit()

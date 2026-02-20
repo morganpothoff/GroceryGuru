@@ -4,7 +4,7 @@
 
 {% block content %}
 	<div class="card">
-		<p style="margin: 0 0 1rem 0;"><a href="/AddListItem">← Add items</a></p>
+		<p style="margin: 0 0 1rem 0;"><a href="{{ url_for('add_list_item', for_list=default_destination|default('Grocery list')) }}">← Add items</a></p>
 		<h1>Scan item</h1>
 		<h2>Scan a barcode to add packaged items to your pantry</h2>
 
@@ -23,8 +23,20 @@
 		</div>
 
 		<div id="add-form-section" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-			<h3 style="font-size: 1.1rem; margin: 0 0 1rem 0;">Add to pantry</h3>
+			<h3 style="font-size: 1.1rem; margin: 0 0 1rem 0;">Add item</h3>
 			<form id="add-pantry-form">
+				<div class="form-group">
+					<label for="destination">Add to</label>
+					<select id="destination" name="destination" required>
+						{% for value, label in dest_options %}
+							<option value="{{ value }}" {% if value == (default_destination|default('Grocery list')) %}selected{% endif %}>{{ label }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="form-group" id="scan-new-list-group" style="display: none;">
+					<label for="new_list_name">New list name</label>
+					<input type="text" id="new_list_name" name="new_list_name" placeholder="e.g. Birthday Party Shopping">
+				</div>
 				<div class="form-group">
 					<label for="item_name">Item name</label>
 					<input type="text" id="item_name" name="item_name" required placeholder="Product name from barcode">
@@ -33,11 +45,11 @@
 					<label for="quantity">Quantity</label>
 					<input type="number" id="quantity" name="quantity" min="1" max="9999" value="1" required>
 				</div>
-				<div class="form-group">
-					<label for="expiration_date">Expiration date <span class="text-muted">(optional)</span></label>
+				<div class="form-group" id="expiration-group">
+					<label for="expiration_date">Expiration date <span class="text-muted">(optional, pantry only)</span></label>
 					<input type="date" id="expiration_date" name="expiration_date" placeholder="YYYY-MM-DD">
 				</div>
-				<button type="submit" class="btn btn-primary">Add to pantry</button>
+				<button type="submit" class="btn btn-primary">Add item</button>
 				<button type="button" id="scan-another-btn" class="btn btn-secondary" style="margin-left: 0.5rem;">Scan another</button>
 			</form>
 			<div id="add-result" style="margin-top: 1rem;"></div>
@@ -82,12 +94,25 @@
 			return;
 		}
 
+		const destSelect = document.getElementById('destination');
+		const scanNewListGroup = document.getElementById('scan-new-list-group');
+		const expirationGroup = document.getElementById('expiration-group');
+
+		function updateDestinationUi() {
+			if (scanNewListGroup) scanNewListGroup.style.display = destSelect && destSelect.value === '__new__' ? 'block' : 'none';
+			if (expirationGroup) expirationGroup.style.display = destSelect && destSelect.value === 'pantry' ? 'block' : 'none';
+		}
+		if (destSelect) {
+			destSelect.addEventListener('change', updateDestinationUi);
+		}
+
 		function showAddForm(productName) {
 			itemNameInput.value = productName || '';
 			quantityInput.value = '1';
 			expirationInput.value = '';
 			addResult.textContent = '';
 			addFormSection.style.display = 'block';
+			updateDestinationUi();
 		}
 
 		function hideAddForm() {
@@ -220,6 +245,9 @@
 			const body = new URLSearchParams();
 			body.append('item_name', formData.get('item_name'));
 			body.append('quantity', formData.get('quantity') || '1');
+			body.append('destination', formData.get('destination') || 'pantry');
+			const newList = formData.get('new_list_name');
+			if (newList) body.append('new_list_name', newList);
 			const exp = formData.get('expiration_date');
 			if (exp) body.append('expiration_date', exp);
 
@@ -231,8 +259,11 @@
 				});
 				const data = await resp.json();
 				if (data.success) {
-					addResult.innerHTML = '<span style="display: block; margin-bottom: 0.5rem;">' + data.message + '</span>' +
-						'<a href="/Pantry/' + {{ current_user.id|tojson }} + '" class="btn btn-primary">View pantry</a>';
+					var linkHtml = '<span style="display: block; margin-bottom: 0.5rem;">' + data.message + '</span>';
+					if (data.redirect) {
+						linkHtml += '<a href="' + data.redirect + '" class="btn btn-primary">View</a>';
+					}
+					addResult.innerHTML = linkHtml;
 					addResult.style.color = 'var(--success)';
 				} else {
 					addResult.textContent = data.error || 'Failed to add item.';
