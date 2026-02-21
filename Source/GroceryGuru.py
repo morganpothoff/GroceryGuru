@@ -6,6 +6,7 @@ from flask import *
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_login import LoginManager
 from datetime import datetime, date
+from pathlib import Path
 import json
 import os
 import Functions
@@ -23,6 +24,7 @@ from database import (
 	update_inventory_ingredient, soft_delete_inventory_ingredient,
 	update_list_ingredient, soft_delete_list_ingredient,
 	create_recipe, update_recipe, soft_delete_recipe,
+	upsert_recipe_rating, create_recipe_comment, create_recipe_image, delete_recipe_image,
 )
 import recipe_extractor
 
@@ -487,6 +489,7 @@ def add_recipe():
 						special_notes=data.get("special_notes", ""),
 						source_url=data.get("source_url", source_url),
 						category=data.get("category", ""),
+						image_url=data.get("image_url", ""),
 					)
 					return redirect(url_for("recipe_detail", recipe_id=rid))
 				# Extraction failed: show form with error and pre-filled URL
@@ -499,6 +502,7 @@ def add_recipe():
 					steps="",
 					special_notes="",
 					category="",
+					image_url="",
 					current_page="recipes",
 				)
 			except Exception as e:
@@ -512,9 +516,11 @@ def add_recipe():
 					steps="",
 					special_notes="",
 					category="",
+					image_url="",
 					current_page="recipes",
 				)
 		# Manual add
+		image_url = request.form.get("image_url", "").strip()
 		if not title:
 			return render_template(
 				"AddRecipe.j2",
@@ -524,6 +530,7 @@ def add_recipe():
 				steps=steps,
 				special_notes=special_notes,
 				category=category,
+				image_url=image_url or "",
 				current_page="recipes",
 			), 400
 		rid = create_recipe(
@@ -534,6 +541,7 @@ def add_recipe():
 			special_notes=special_notes or None,
 			source_url=source_url or None,
 			category=category or None,
+			image_url=image_url or None,
 		)
 		return redirect(url_for("recipe_detail", recipe_id=rid))
 	return render_template("AddRecipe.j2", current_page="recipes")
@@ -556,7 +564,7 @@ def recipes_by_category(category: str):
 @app.route("/Recipe/<int:recipe_id>", methods=["GET", "POST"])
 @login_required
 def recipe_detail(recipe_id: int):
-	"""Recipe profile: view, edit, and delete."""
+	"""Recipe profile: view, edit, delete, rate, and comment."""
 	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
 	if recipe is None:
 		return "Recipe not found or you don't have access to it.", 404
@@ -574,21 +582,95 @@ def recipe_detail(recipe_id: int):
 				special_notes=request.form.get("special_notes", "").strip() or None,
 				source_url=request.form.get("source_url", "").strip() or None,
 				category=request.form.get("category", "").strip() or None,
+				image_url=request.form.get("image_url", "").strip() or None,
 			)
+			return redirect(url_for("recipe_detail", recipe_id=recipe_id))
+		if action == "rate":
+			try:
+				rating = int(request.form.get("rating", 0))
+				if 1 <= rating <= 5:
+					upsert_recipe_rating(recipe_id, current_user.id, rating)
+			except (ValueError, TypeError):
+				pass
+			return redirect(url_for("recipe_detail", recipe_id=recipe_id))
+		if action == "comment":
+			comment_body = request.form.get("comment_body", "").strip()
+			if comment_body:
+				try:
+					create_recipe_comment(recipe_id, current_user.id, comment_body)
+				except ValueError:
+					pass
 			return redirect(url_for("recipe_detail", recipe_id=recipe_id))
 	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
 	if recipe is None:
 		return redirect(url_for("recipes_index"))
 	ingredients_list = [ln.strip() for ln in (recipe.ingredients or "").splitlines() if ln.strip()]
 	steps_list = [ln.strip() for ln in (recipe.steps or "").splitlines() if ln.strip()]
+	avg_rating = database.Select.get_recipe_average_rating(recipe_id)
+	rating_count = database.Select.get_recipe_rating_count(recipe_id)
+	user_rating = database.Select.get_user_recipe_rating(recipe_id, current_user.id)
+	comments = database.Select.get_recipe_comments(recipe_id)
+	recipe_images = database.Select.get_recipe_images(recipe_id)
+	# Build list of {url, id}: uploaded images have id for delete; legacy image_url has id=None
+	recipe_images_data = [{"url": url_for("static", filename=img.file_path), "id": img.id} for img in recipe_images]
+	if not recipe_images_data and getattr(recipe, "image_url", None):
+		recipe_images_data = [{"url": recipe.image_url, "id": None}]
 	return render_template(
 		"Recipe.j2",
 		recipe=recipe,
 		ingredients_list=ingredients_list,
 		steps_list=steps_list,
 		categories=RECIPE_CATEGORIES,
+		average_rating=avg_rating,
+		rating_count=rating_count,
+		user_rating=user_rating,
+		comments=comments,
+		recipe_images_data=recipe_images_data,
 		current_page="recipes",
 	)
+
+
+@app.route("/Recipe/<int:recipe_id>/delete-image/<int:image_id>", methods=["POST"])
+@login_required
+def delete_recipe_image_route(recipe_id: int, image_id: int):
+	"""Delete a recipe image (only for RecipeImages, not legacy image_url)."""
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return jsonify({"success": False, "error": "Recipe not found"}), 404
+	if delete_recipe_image(recipe_id, image_id):
+		return jsonify({"success": True})
+	return jsonify({"success": False, "error": "Image not found"}), 404
+
+
+@app.route("/Recipe/<int:recipe_id>/upload-image", methods=["POST"])
+@login_required
+def upload_recipe_image(recipe_id: int):
+	"""Upload one or more images for a recipe. Accepts multipart form with 'image' or 'images[]'."""
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return jsonify({"success": False, "error": "Recipe not found"}), 404
+	ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+	upload_dir = Path(app.root_path) / "static" / "uploads" / "recipes"
+	upload_dir.mkdir(parents=True, exist_ok=True)
+	files = request.files.getlist("images") or request.files.getlist("image")
+	if not files or (len(files) == 1 and files[0].filename == ""):
+		return jsonify({"success": False, "error": "No file selected"}), 400
+	uploaded = []
+	for f in files:
+		if not f or not f.filename:
+			continue
+		ext = Path(f.filename).suffix.lower()
+		if ext not in ALLOWED_EXT:
+			continue
+		import uuid
+		stem = werkzeug.utils.secure_filename(Path(f.filename).stem) or "img"
+		safe_name = f"{recipe_id}_{stem}_{uuid.uuid4().hex[:8]}{ext}"
+		dest = upload_dir / safe_name
+		f.save(str(dest))
+		rel_path = f"uploads/recipes/{safe_name}"
+		create_recipe_image(recipe_id, rel_path)
+		uploaded.append(url_for("static", filename=rel_path))
+	return jsonify({"success": True, "images": uploaded})
 
 
 @app.route("/DeleteRecipe/<int:recipe_id>", methods=["POST"])

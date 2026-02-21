@@ -63,6 +63,7 @@ def _migrate_recipes_table_if_needed():
 					"special_notes" TEXT DEFAULT '',
 					"source_url" TEXT,
 					"category" TEXT DEFAULT '',
+					"image_url" TEXT,
 					"Persons.id" INTEGER NOT NULL,
 					"is_deleted" INTEGER NOT NULL DEFAULT 0,
 					"date_added" TEXT NOT NULL DEFAULT (datetime('now')),
@@ -71,9 +72,87 @@ def _migrate_recipes_table_if_needed():
 			""")
 
 
+def _migrate_recipes_image_url_if_needed():
+	"""Add image_url column to Recipes if it doesn't exist."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("PRAGMA table_info(Recipes)")
+		cols = [row[1] for row in cur.fetchall()]
+		if "image_url" not in cols:
+			raw.execute("ALTER TABLE Recipes ADD COLUMN image_url TEXT")
+
+
+def _migrate_recipe_ratings_if_needed():
+	"""Create RecipeRatings table if it doesn't exist."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='RecipeRatings'")
+		if cur.fetchone() is None:
+			raw.execute("""
+				CREATE TABLE "RecipeRatings" (
+					"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+					"Recipes.id" INTEGER NOT NULL,
+					"Persons.id" INTEGER NOT NULL,
+					"rating" INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+					"created_at" TEXT NOT NULL DEFAULT (datetime('now')),
+					UNIQUE ("Recipes.id", "Persons.id"),
+					FOREIGN KEY ("Recipes.id") REFERENCES "Recipes"("id"),
+					FOREIGN KEY ("Persons.id") REFERENCES "Persons"("id")
+				)
+			""")
+
+
+def _migrate_recipe_comments_if_needed():
+	"""Create RecipeComments table if it doesn't exist."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='RecipeComments'")
+		if cur.fetchone() is None:
+			raw.execute("""
+				CREATE TABLE "RecipeComments" (
+					"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+					"Recipes.id" INTEGER NOT NULL,
+					"Persons.id" INTEGER NOT NULL,
+					"body" TEXT NOT NULL,
+					"created_at" TEXT NOT NULL DEFAULT (datetime('now')),
+					FOREIGN KEY ("Recipes.id") REFERENCES "Recipes"("id"),
+					FOREIGN KEY ("Persons.id") REFERENCES "Persons"("id")
+				)
+			""")
+
+
+def _migrate_recipe_images_if_needed():
+	"""Create RecipeImages table for multiple images per recipe."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='RecipeImages'")
+		if cur.fetchone() is None:
+			raw.execute("""
+				CREATE TABLE "RecipeImages" (
+					"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+					"Recipes.id" INTEGER NOT NULL,
+					"file_path" TEXT NOT NULL,
+					"sort_order" INTEGER NOT NULL DEFAULT 0,
+					FOREIGN KEY ("Recipes.id") REFERENCES "Recipes"("id")
+				)
+			""")
+
+
 _init_schema_if_needed()
 _migrate_add_notes_if_needed()
 _migrate_recipes_table_if_needed()
+_migrate_recipes_image_url_if_needed()
+_migrate_recipe_ratings_if_needed()
+_migrate_recipe_comments_if_needed()
+_migrate_recipe_images_if_needed()
 
 # reflect the tables
 Base = automap_base()
@@ -88,6 +167,9 @@ Ingredients = Base.classes.Ingredients
 ListIngredients = Base.classes.ListIngredients
 InventoryIngredients = Base.classes.InventoryIngredients
 Recipes = Base.classes.Recipes
+RecipeRatings = Base.classes.RecipeRatings
+RecipeComments = Base.classes.RecipeComments
+RecipeImages = Base.classes.RecipeImages
 
 
 def get_user_count():
@@ -266,10 +348,10 @@ def soft_delete_list_ingredient(list_ingredient_id: int):
 
 # ————————————————————————————————— Recipes ———————————————————————————————— #
 
-def create_recipe(title: str, Persons_id: int, ingredients: str = "", steps: str = "", special_notes: str = None, source_url: str = None, category: str = None):
+def create_recipe(title: str, Persons_id: int, ingredients: str = "", steps: str = "", special_notes: str = None, source_url: str = None, category: str = None, image_url: str = None):
 	"""Create a new recipe."""
 	with Session(engine) as session:
-		stmt = insert(Recipes.__table__).values(**{
+		values = {
 			"title": title,
 			"ingredients": ingredients or "",
 			"steps": steps or "",
@@ -277,13 +359,16 @@ def create_recipe(title: str, Persons_id: int, ingredients: str = "", steps: str
 			"source_url": (source_url or "").strip() or None,
 			"category": (category or "").strip() or None,
 			"Persons.id": Persons_id,
-		})
+		}
+		if hasattr(Recipes.__table__.c, "image_url"):
+			values["image_url"] = (image_url or "").strip() or None
+		stmt = insert(Recipes.__table__).values(**values)
 		result = session.execute(stmt)
 		session.commit()
 		return result.inserted_primary_key[0]
 
 
-def update_recipe(recipe_id: int, title: str = None, ingredients: str = None, steps: str = None, special_notes: str = None, source_url: str = None, category: str = None):
+def update_recipe(recipe_id: int, title: str = None, ingredients: str = None, steps: str = None, special_notes: str = None, source_url: str = None, category: str = None, image_url: str = None):
 	"""Update recipe fields. Pass None to leave unchanged."""
 	tbl = Recipes.__table__
 	updates = {}
@@ -299,6 +384,8 @@ def update_recipe(recipe_id: int, title: str = None, ingredients: str = None, st
 		updates["source_url"] = (source_url or "").strip() or None
 	if category is not None:
 		updates["category"] = (category or "").strip() or None
+	if image_url is not None and hasattr(tbl.c, "image_url"):
+		updates["image_url"] = (image_url or "").strip() or None
 	if not updates:
 		return
 	with Session(engine) as session:
@@ -314,3 +401,88 @@ def soft_delete_recipe(recipe_id: int):
 		stmt = update(tbl).where(tbl.c.id == recipe_id).values(is_deleted=True)
 		session.execute(stmt)
 		session.commit()
+
+
+def upsert_recipe_rating(recipe_id: int, Persons_id: int, rating: int):
+	"""Set or update a user's rating (1-5) for a recipe. Uses INSERT OR REPLACE for SQLite."""
+	rating = max(1, min(5, int(rating)))
+	with Session(engine) as session:
+		existing = session.execute(
+			select(RecipeRatings).where(
+				getattr(RecipeRatings, "Recipes.id") == recipe_id,
+				getattr(RecipeRatings, "Persons.id") == Persons_id,
+			)
+		).scalar_one_or_none()
+		if existing:
+			session.execute(
+				update(RecipeRatings.__table__)
+				.where(getattr(RecipeRatings.__table__.c, "id") == existing.id)
+				.values(rating=rating)
+			)
+		else:
+			session.execute(
+				insert(RecipeRatings.__table__).values(**{
+					"Recipes.id": recipe_id,
+					"Persons.id": Persons_id,
+					"rating": rating,
+				})
+			)
+		session.commit()
+
+
+def create_recipe_comment(recipe_id: int, Persons_id: int, body: str) -> int:
+	"""Add a comment to a recipe. Returns comment id."""
+	body = (body or "").strip()
+	if not body:
+		raise ValueError("Comment body cannot be empty")
+	with Session(engine) as session:
+		stmt = insert(RecipeComments.__table__).values(**{
+			"Recipes.id": recipe_id,
+			"Persons.id": Persons_id,
+			"body": body,
+		})
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
+
+
+def create_recipe_image(recipe_id: int, file_path: str) -> int:
+	"""Add an image to a recipe. file_path is relative to static (e.g. uploads/recipes/xxx.jpg). Returns image id."""
+	with Session(engine) as session:
+		# Get max sort_order
+		from sqlalchemy import func
+		max_order = session.query(func.coalesce(func.max(RecipeImages.sort_order), -1)).filter(
+			getattr(RecipeImages, "Recipes.id") == recipe_id,
+		).scalar() or -1
+		stmt = insert(RecipeImages.__table__).values(**{
+			"Recipes.id": recipe_id,
+			"file_path": file_path,
+			"sort_order": max_order + 1,
+		})
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
+
+
+def delete_recipe_image(recipe_id: int, image_id: int) -> bool:
+	"""Delete a recipe image. Returns True if deleted, False if not found or not owned."""
+	from sqlalchemy import delete as sql_delete
+	tbl = RecipeImages.__table__
+	with Session(engine) as session:
+		row = session.query(RecipeImages).filter(
+			RecipeImages.id == image_id,
+			getattr(RecipeImages, "Recipes.id") == recipe_id,
+		).first()
+		if not row:
+			return False
+		file_path = row.file_path
+		session.execute(sql_delete(tbl).where(tbl.c.id == image_id))
+		session.commit()
+	# Remove file from disk
+	full_path = Path(__file__).resolve().parent / "static" / file_path
+	if full_path.exists():
+		try:
+			full_path.unlink()
+		except OSError:
+			pass
+	return True

@@ -754,3 +754,270 @@ a:hover {
 	text-decoration: line-through;
 	color: var(--text-muted);
 }
+
+/* --- Recipe header row (breadcrumb + upload) --- */
+.recipe-header-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+
+.recipe-breadcrumb {
+	flex: 1;
+	min-width: 0;
+}
+
+/* --- Recipe image upload (drag & drop) --- */
+.recipe-upload-zone {
+	flex-shrink: 0;
+}
+
+.recipe-upload-drop {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 1rem;
+	background: var(--bg-primary);
+	border: 2px dashed var(--border);
+	border-radius: 8px;
+	cursor: pointer;
+	transition: border-color 0.2s, background 0.2s;
+}
+
+.recipe-upload-drop:hover,
+.recipe-upload-drop.drag-over {
+	border-color: var(--accent);
+	background: var(--accent-bg);
+}
+
+.recipe-upload-drop.uploading {
+	opacity: 0.7;
+	cursor: wait;
+}
+
+.recipe-upload-icon {
+	font-size: 1.2rem;
+}
+
+.recipe-upload-text {
+	font-size: 0.9rem;
+	color: var(--text-secondary);
+}
+
+/* --- Recipe image carousel --- */
+.recipe-image-carousel {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	max-height: 320px;
+	border-radius: 12px;
+	overflow: hidden;
+	background: var(--bg-primary);
+	margin-bottom: 1.25rem;
+	border: 1px solid var(--border);
+}
+
+.recipe-carousel-inner {
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+
+.recipe-carousel-slide {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.recipe-carousel-img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	opacity: 0;
+	transition: opacity 0.3s;
+}
+
+.recipe-carousel-slide .recipe-carousel-img.active {
+	opacity: 1;
+	z-index: 1;
+}
+
+.recipe-image-delete {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	z-index: 5;
+	width: 32px;
+	height: 32px;
+	border: none;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.6);
+	color: white;
+	font-size: 1.25rem;
+	line-height: 1;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.recipe-image-delete:hover {
+	background: var(--error);
+}
+
+.recipe-carousel-slide:not(.active) .recipe-image-delete {
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.recipe-carousel-arrow {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 10;
+	width: 44px;
+	height: 44px;
+	border: none;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.5);
+	color: white;
+	font-size: 1.75rem;
+	line-height: 1;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.recipe-carousel-arrow:hover {
+	background: rgba(0, 0, 0, 0.7);
+}
+
+.recipe-carousel-prev {
+	left: 0.75rem;
+}
+
+.recipe-carousel-next {
+	right: 0.75rem;
+}
+
+.recipe-carousel-arrow-hide {
+	visibility: hidden;
+	pointer-events: none;
+}
+
+/* --- Recipe rating (stars) --- */
+.recipe-rating-section {
+	margin-bottom: 1rem;
+}
+
+.recipe-rating-display {
+	display: flex;
+	align-items: center;
+	gap: 0.2rem;
+	margin-bottom: 0.5rem;
+}
+
+.recipe-star {
+	color: var(--border);
+	font-size: 1.4rem;
+}
+
+.recipe-star.filled {
+	color: var(--accent-muted);
+}
+
+.recipe-rating-text {
+	font-size: 0.9rem;
+	margin-left: 0.5rem;
+}
+
+.recipe-rate-form {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	flex-wrap: wrap;
+}
+
+.recipe-rate-label {
+	font-size: 0.9rem;
+	color: var(--text-muted);
+	margin-right: 0.25rem;
+}
+
+.recipe-star-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0.2rem;
+	font-size: 1.5rem;
+	color: var(--border);
+	transition: color 0.2s, transform 0.15s;
+}
+
+.recipe-star-btn:hover {
+	color: var(--accent-muted);
+	transform: scale(1.1);
+}
+
+.recipe-star-btn.selected {
+	color: var(--accent-muted);
+}
+
+/* --- Recipe comments --- */
+.recipe-comments-section {
+	margin-top: 2rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--border);
+}
+
+.recipe-comments-section h3 {
+	font-size: 1.2rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+	margin: 0 0 1rem 0;
+}
+
+.recipe-comment-form {
+	margin-bottom: 1.5rem;
+}
+
+.recipe-comments-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.recipe-comment {
+	padding: 1rem;
+	margin-bottom: 0.75rem;
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+
+.recipe-comment-author {
+	font-weight: 600;
+	color: var(--text-primary);
+	font-size: 0.95rem;
+	margin-bottom: 0.35rem;
+}
+
+.recipe-comment-body {
+	color: var(--text-primary);
+	line-height: 1.5;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+}
+
+.recipe-comment-date {
+	font-size: 0.8rem;
+	margin-top: 0.5rem;
+}
+
+.recipe-comment-empty {
+	padding: 0.75rem 0;
+	font-size: 0.95rem;
+}

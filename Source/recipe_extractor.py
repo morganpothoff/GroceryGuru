@@ -63,6 +63,23 @@ def _extract_instructions_from_schema(obj) -> str:
 	return str(instructions)
 
 
+def _extract_image_from_schema(obj) -> str:
+	"""Get recipe image URL from Schema.org. Returns first URL if image is a list."""
+	img = obj.get("image")
+	if not img:
+		return ""
+	if isinstance(img, str):
+		return img.strip()
+	if isinstance(img, list) and img:
+		first = img[0]
+		if isinstance(first, str):
+			return first.strip()
+		if isinstance(first, dict):
+			url = first.get("url") or first.get("@id") or ""
+			return str(url).strip() if url else ""
+	return ""
+
+
 def _extract_ingredients_from_schema(obj) -> str:
 	"""Get ingredients as newline-separated text."""
 	ingredients = obj.get("recipeIngredient")
@@ -144,6 +161,7 @@ def extract_recipe_from_url(url: str) -> dict | None:
 		category = _normalize_category(str(raw_cat) if raw_cat else "")
 		if not category:
 			category = _infer_category_from_text(title)
+		image_url = _extract_image_from_schema(recipe_obj)
 		return {
 			"title": str(title).strip(),
 			"ingredients": ingredients,
@@ -151,6 +169,7 @@ def extract_recipe_from_url(url: str) -> dict | None:
 			"special_notes": special_notes.strip(),
 			"category": category,
 			"source_url": url,
+			"image_url": image_url,
 		}
 
 	# Fallback: look for common patterns (class names used by recipe sites)
@@ -183,4 +202,5 @@ def extract_recipe_from_url(url: str) -> dict | None:
 		"special_notes": "",
 		"category": category,
 		"source_url": url,
+		"image_url": "",
 	}

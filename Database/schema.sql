@@ -76,8 +76,30 @@ CREATE TABLE IF NOT EXISTS "Recipes" (
 	"special_notes" TEXT DEFAULT '',
 	"source_url" TEXT,
 	"category" TEXT DEFAULT '',
+	"image_url" TEXT,
 	"Persons.id" INTEGER NOT NULL,
 	"is_deleted" INTEGER NOT NULL DEFAULT 0,
 	"date_added" TEXT NOT NULL DEFAULT (datetime('now')),
+	FOREIGN KEY ("Persons.id") REFERENCES "Persons"("id")
+);
+
+CREATE TABLE IF NOT EXISTS "RecipeRatings" (
+	"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	"Recipes.id" INTEGER NOT NULL,
+	"Persons.id" INTEGER NOT NULL,
+	"rating" INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+	"created_at" TEXT NOT NULL DEFAULT (datetime('now')),
+	UNIQUE ("Recipes.id", "Persons.id"),
+	FOREIGN KEY ("Recipes.id") REFERENCES "Recipes"("id"),
+	FOREIGN KEY ("Persons.id") REFERENCES "Persons"("id")
+);
+
+CREATE TABLE IF NOT EXISTS "RecipeComments" (
+	"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	"Recipes.id" INTEGER NOT NULL,
+	"Persons.id" INTEGER NOT NULL,
+	"body" TEXT NOT NULL,
+	"created_at" TEXT NOT NULL DEFAULT (datetime('now')),
+	FOREIGN KEY ("Recipes.id") REFERENCES "Recipes"("id"),
 	FOREIGN KEY ("Persons.id") REFERENCES "Persons"("id")
 );
