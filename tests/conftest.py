@@ -82,10 +82,22 @@ def _clean_db_before_test(request):
 	import sqlite3
 	if _test_db_path and Path(_test_db_path).exists():
 		with sqlite3.connect(_test_db_path) as conn:
+			try:
+				conn.execute("DELETE FROM RecipeImages")
+			except sqlite3.OperationalError:
+				pass
+			try:
+				conn.execute("DELETE FROM RecipeRatings")
+			except sqlite3.OperationalError:
+				pass
+			try:
+				conn.execute("DELETE FROM RecipeComments")
+			except sqlite3.OperationalError:
+				pass
 			conn.execute("DELETE FROM Recipes")
 			conn.execute("DELETE FROM InventoryIngredients")
-			conn.execute("DELETE FROM Ingredients")
 			conn.execute("DELETE FROM ListIngredients")
+			conn.execute("DELETE FROM Ingredients")
 			conn.execute("DELETE FROM Lists")
 			conn.execute("DELETE FROM Persons")
 			conn.commit()
