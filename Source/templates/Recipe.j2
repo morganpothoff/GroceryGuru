@@ -1,0 +1,391 @@
+{% extends "Base.j2" %}
+
+{% block title %}{{ recipe.title }} — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<div class="recipe-header-row">
+			<p class="recipe-breadcrumb" style="margin: 0;">
+				<a href="{{ url_for('recipes_index') }}">← Recipes</a>
+				{% if recipe.category %}
+					| <a href="{{ url_for('recipes_by_category', category=recipe.category) }}">{{ recipe.category }}</a>
+				{% else %}
+					| <a href="{{ url_for('recipes_by_category', category='Others') }}">Others</a>
+				{% endif %}
+			</p>
+			<div class="recipe-upload-zone recipe-edit-only" id="recipe-upload-zone" data-recipe-id="{{ recipe.id }}" style="display: none;">
+				<input type="file" id="recipe-image-input" name="images" accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden>
+				<div class="recipe-upload-drop" id="recipe-upload-drop">
+					<span class="recipe-upload-icon">📷</span>
+					<span class="recipe-upload-text">Drop images here or click to upload</span>
+				</div>
+			</div>
+		</div>
+
+		<div id="recipe-images-wrapper" class="{% if not recipe_images_data %}recipe-images-empty{% endif %}">
+			<div class="recipe-image-carousel" id="recipe-image-carousel" {% if not recipe_images_data %}style="display: none;"{% endif %}>
+				<button type="button" class="recipe-carousel-arrow recipe-carousel-prev recipe-carousel-arrow-hide" id="recipe-carousel-prev" aria-label="Previous image">‹</button>
+				<div class="recipe-carousel-inner" id="recipe-carousel-inner">
+					{% for img in recipe_images_data %}
+						<div class="recipe-carousel-slide {% if loop.first %}active{% endif %}" data-image-id="{{ img.id or '' }}">
+							<img src="{{ img.url }}" alt="{{ recipe.title }}" class="recipe-carousel-img {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}">
+							{% if img.id %}
+								<button type="button" class="recipe-image-delete recipe-edit-only" data-image-id="{{ img.id }}" aria-label="Delete image" title="Delete image" style="display: none;">×</button>
+							{% endif %}
+						</div>
+					{% endfor %}
+				</div>
+				<button type="button" class="recipe-carousel-arrow recipe-carousel-next recipe-carousel-arrow-hide" id="recipe-carousel-next" aria-label="Next image">›</button>
+			</div>
+		</div>
+
+		<h1 id="recipe-title-display">{{ recipe.title }}</h1>
+
+		<div class="recipe-rating-section">
+			<div class="recipe-rating-display" aria-label="Average rating: {{ average_rating or 'No ratings yet' }}">
+				{% for i in range(1, 6) %}
+					<span class="recipe-star {% if average_rating and i <= (average_rating|round) %}filled{% endif %}">★</span>
+				{% endfor %}
+				{% if rating_count %}
+					<span class="recipe-rating-text">({{ average_rating }}) {{ rating_count }} rating{{ 's' if rating_count != 1 else '' }}</span>
+				{% else %}
+					<span class="recipe-rating-text text-muted">No ratings yet</span>
+				{% endif %}
+			</div>
+			<form method="post" action="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="recipe-rate-form">
+				<input type="hidden" name="action" value="rate">
+				<span class="recipe-rate-label">Rate:</span>
+				{% for i in range(1, 6) %}
+					<button type="submit" name="rating" value="{{ i }}" class="recipe-star-btn {% if user_rating == i %}selected{% endif %}" title="Rate {{ i }} star{{ 's' if i > 1 else '' }}" aria-pressed="{% if user_rating == i %}true{% else %}false{% endif %}">★</button>
+				{% endfor %}
+			</form>
+		</div>
+
+		<div id="recipe-view-actions" style="margin-bottom: 1rem;">
+			<button type="button" id="btn-edit-recipe" class="btn btn-primary">Edit</button>
+		</div>
+
+		<div id="recipe-view" class="recipe-profile-view">
+			<p class="recipe-source">
+				<strong>Source:</strong>
+				{% if recipe.source_url %}
+					<a href="{{ recipe.source_url }}" target="_blank" rel="noopener noreferrer">{{ recipe.source_url }}</a>
+				{% else %}
+					<span class="text-muted">(none)</span>
+				{% endif %}
+			</p>
+			<div class="recipe-section">
+				<h3>Ingredients</h3>
+				<ul class="recipe-checklist" id="recipe-ingredients-list">
+					{% for line in ingredients_list %}
+					<li class="recipe-check-item">
+						<label class="recipe-check-label">
+							<input type="checkbox" class="recipe-checkbox" data-type="ingredients" data-index="{{ loop.index0 }}">
+							<span class="recipe-check-text">{{ line }}</span>
+						</label>
+					</li>
+					{% else %}
+					<li class="recipe-check-empty"><span class="text-muted">(none)</span></li>
+					{% endfor %}
+				</ul>
+			</div>
+			<div class="recipe-section">
+				<h3>Steps</h3>
+				<ul class="recipe-checklist" id="recipe-steps-list">
+					{% for line in steps_list %}
+					<li class="recipe-check-item">
+						<label class="recipe-check-label">
+							<input type="checkbox" class="recipe-checkbox" data-type="steps" data-index="{{ loop.index0 }}">
+							<span class="recipe-check-text">{{ line }}</span>
+						</label>
+					</li>
+					{% else %}
+					<li class="recipe-check-empty"><span class="text-muted">(none)</span></li>
+					{% endfor %}
+				</ul>
+			</div>
+			<div class="recipe-section">
+				<h3>Notes</h3>
+				<pre class="recipe-block">{{ recipe.special_notes or '(none)' }}</pre>
+			</div>
+		</div>
+
+		<form id="recipe-edit-form" method="post" action="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="recipe-form" style="display: none;">
+			<input type="hidden" name="action" value="update">
+			<div class="form-group">
+				<label for="title">Title</label>
+				<input type="text" id="title" name="title" value="{{ recipe.title }}" required>
+			</div>
+			<div class="form-group">
+				<label for="source_url">Original link <span class="text-muted">(optional)</span></label>
+				<input type="url" id="source_url" name="source_url" value="{{ recipe.source_url or '' }}" placeholder="https://...">
+			</div>
+			<div class="form-group">
+				<label for="image_url">Image URL <span class="text-muted">(optional)</span></label>
+				<input type="url" id="image_url" name="image_url" value="{{ recipe.image_url or '' }}" placeholder="https://example.com/recipe-photo.jpg">
+			</div>
+			<div class="form-group">
+				<label for="category">Category <span class="text-muted">(optional, leave empty for Others)</span></label>
+				<select id="category" name="category">
+					<option value="">Others</option>
+					{% for cat in categories %}
+						<option value="{{ cat }}" {% if recipe.category == cat %}selected{% endif %}>{{ cat }}</option>
+					{% endfor %}
+				</select>
+			</div>
+			<div class="form-group">
+				<label for="ingredients">Ingredients</label>
+				<textarea id="ingredients" name="ingredients" rows="8">{{ recipe.ingredients or '' }}</textarea>
+			</div>
+			<div class="form-group">
+				<label for="steps">Steps</label>
+				<textarea id="steps" name="steps" rows="10">{{ recipe.steps or '' }}</textarea>
+			</div>
+			<div class="form-group">
+				<label for="special_notes">Special notes <span class="text-muted">(optional)</span></label>
+				<textarea id="special_notes" name="special_notes" rows="3">{{ recipe.special_notes or '' }}</textarea>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="btn btn-primary">Save changes</button>
+				<button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancel</button>
+			</div>
+		</form>
+
+		<section class="recipe-comments-section">
+			<h3>Comments</h3>
+			<form method="post" action="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="recipe-comment-form">
+				<input type="hidden" name="action" value="comment">
+				<div class="form-group">
+					<label for="comment_body" class="sr-only">Add a comment</label>
+					<textarea id="comment_body" name="comment_body" rows="3" placeholder="Add a comment..." required></textarea>
+				</div>
+				<button type="submit" class="btn btn-primary">Post comment</button>
+			</form>
+			<ul class="recipe-comments-list">
+				{% for comment, person in comments %}
+				<li class="recipe-comment">
+					<div class="recipe-comment-author">{{ person.name or person.email or 'Anonymous' }}</div>
+					<div class="recipe-comment-body">{{ comment.body }}</div>
+					<div class="recipe-comment-date text-muted">{{ (comment.created_at|string)[:16] if comment.created_at else '' }}</div>
+				</li>
+				{% else %}
+				<li class="recipe-comment-empty text-muted">No comments yet. Be the first to comment!</li>
+				{% endfor %}
+			</ul>
+		</section>
+
+		<div class="recipe-meta" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+			<form method="post" action="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="delete-form" onsubmit="return confirm('Are you sure you want to delete this recipe?');">
+				<input type="hidden" name="action" value="delete">
+				<button type="submit" class="btn btn-danger" aria-label="Delete recipe">
+					<svg class="trash-icon" viewBox="0 0 24 24" width="20" height="20">
+						<path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+					</svg>
+					Delete recipe
+				</button>
+			</form>
+		</div>
+	</div>
+	<script>
+	(function() {
+		var recipeId = {{ recipe.id }};
+		var recipeTitle = {{ recipe.title|tojson }};
+		var storageKey = function(type) { return 'recipe-' + recipeId + '-' + type; };
+
+		var pendingUploads = [];
+		var pendingDeletes = [];
+
+		var view = document.getElementById('recipe-view');
+		var form = document.getElementById('recipe-edit-form');
+		var viewActions = document.getElementById('recipe-view-actions');
+		var btnEdit = document.getElementById('btn-edit-recipe');
+		var btnCancel = document.getElementById('btn-cancel-edit');
+		if (!view || !form) return;
+		btnEdit.addEventListener('click', function() {
+			view.style.display = 'none';
+			form.style.display = 'block';
+			viewActions.style.display = 'none';
+			document.querySelectorAll('.recipe-edit-only').forEach(function(el) { el.style.display = ''; });
+		});
+		btnCancel.addEventListener('click', function() {
+			view.style.display = 'block';
+			form.style.display = 'none';
+			viewActions.style.display = 'block';
+			document.querySelectorAll('.recipe-edit-only').forEach(function(el) { el.style.display = 'none'; });
+		});
+
+		// Restore checkbox state from localStorage
+		function loadChecks(type) {
+			try {
+				var raw = localStorage.getItem(storageKey(type));
+				if (raw) {
+					var idx = JSON.parse(raw);
+					document.querySelectorAll('.recipe-checkbox[data-type="' + type + '"]').forEach(function(cb) {
+						cb.checked = idx.indexOf(parseInt(cb.dataset.index, 10)) >= 0;
+					});
+				}
+			} catch (e) {}
+		}
+		loadChecks('ingredients');
+		loadChecks('steps');
+
+		// Save checkbox state to localStorage
+		document.querySelectorAll('.recipe-checkbox').forEach(function(cb) {
+			cb.addEventListener('change', function() {
+				var type = this.dataset.type;
+				var checked = [];
+				document.querySelectorAll('.recipe-checkbox[data-type="' + type + '"]').forEach(function(c) {
+					if (c.checked) checked.push(parseInt(c.dataset.index, 10));
+				});
+				try { localStorage.setItem(storageKey(type), JSON.stringify(checked)); } catch (e) {}
+			});
+		});
+
+		var carousel = document.getElementById('recipe-image-carousel');
+		var carouselInner = document.getElementById('recipe-carousel-inner');
+		var prevBtn = document.getElementById('recipe-carousel-prev');
+		var nextBtn = document.getElementById('recipe-carousel-next');
+
+		function countSlides() { return (carouselInner && carouselInner.querySelectorAll('.recipe-carousel-slide').length) || 0; }
+		function updateArrows() {
+			var n = countSlides();
+			if (prevBtn && nextBtn) {
+				prevBtn.classList.toggle('recipe-carousel-arrow-hide', n < 2);
+				nextBtn.classList.toggle('recipe-carousel-arrow-hide', n < 2);
+			}
+		}
+		updateArrows();
+
+		function showSlide(i) {
+			var imgs = carousel && carousel.querySelectorAll('.recipe-carousel-img');
+			var slides = carousel && carousel.querySelectorAll('.recipe-carousel-slide');
+			if (!imgs || !imgs.length) return;
+			var n = imgs.length;
+			var idx = ((i % n) + n) % n;
+			imgs.forEach(function(img, j) { img.classList.toggle('active', j === idx); });
+			if (slides && slides.length) slides.forEach(function(slide, j) { slide.classList.toggle('active', j === idx); });
+			return idx;
+		}
+
+		var carouselIdx = 0;
+		if (carousel && prevBtn && nextBtn) {
+			prevBtn.addEventListener('click', function() {
+				var n = countSlides();
+				if (n < 2) return;
+				carouselIdx = showSlide(carouselIdx - 1);
+			});
+			nextBtn.addEventListener('click', function() {
+				var n = countSlides();
+				if (n < 2) return;
+				carouselIdx = showSlide(carouselIdx + 1);
+			});
+		}
+
+		function addSlideFromPending(file) {
+			var url = URL.createObjectURL(file);
+			var slide = document.createElement('div');
+			slide.className = 'recipe-carousel-slide';
+			slide.dataset.pending = '1';
+			var prevActive = carouselInner.querySelector('.recipe-carousel-slide.active');
+			if (prevActive) {
+				prevActive.classList.remove('active');
+				prevActive.querySelector('.recipe-carousel-img').classList.remove('active');
+			}
+			slide.innerHTML = '<img src="' + url + '" alt="' + recipeTitle + '" class="recipe-carousel-img active">' +
+				'<button type="button" class="recipe-image-delete recipe-edit-only" data-pending="1" aria-label="Remove image">×</button>';
+			carouselInner.appendChild(slide);
+			if (carousel) carousel.style.display = '';
+			updateArrows();
+			slide.querySelector('.recipe-image-delete').addEventListener('click', function() {
+				URL.revokeObjectURL(url);
+				pendingUploads = pendingUploads.filter(function(f) { return f !== file; });
+				slide.remove();
+				updateArrows();
+				var remaining = carouselInner.querySelectorAll('.recipe-carousel-slide');
+				if (remaining.length > 0) {
+					remaining[0].classList.add('active');
+					remaining[0].querySelector('.recipe-carousel-img').classList.add('active');
+				}
+				if (countSlides() === 0 && carousel) carousel.style.display = 'none';
+			});
+		}
+
+		// Staged upload: add to pending, show preview
+		var uploadZone = document.getElementById('recipe-upload-zone');
+		var uploadDrop = document.getElementById('recipe-upload-drop');
+		var imageInput = document.getElementById('recipe-image-input');
+		if (uploadZone && uploadDrop && imageInput) {
+			uploadDrop.addEventListener('click', function() { imageInput.click(); });
+			uploadDrop.addEventListener('dragover', function(e) { e.preventDefault(); uploadDrop.classList.add('drag-over'); });
+			uploadDrop.addEventListener('dragleave', function() { uploadDrop.classList.remove('drag-over'); });
+			uploadDrop.addEventListener('drop', function(e) {
+				e.preventDefault();
+				uploadDrop.classList.remove('drag-over');
+				if (e.dataTransfer.files.length) stageFiles(e.dataTransfer.files);
+			});
+			imageInput.addEventListener('change', function() {
+				if (this.files.length) stageFiles(this.files);
+				this.value = '';
+			});
+			function stageFiles(files) {
+				for (var i = 0; i < files.length; i++) {
+					var f = files[i];
+					if (!/^image\/(jpeg|png|gif|webp)/i.test(f.type)) continue;
+					pendingUploads.push(f);
+					addSlideFromPending(f);
+				}
+			}
+		}
+
+		// Delete: stage for deletion, remove from DOM (doesn't exit edit mode)
+		document.querySelectorAll('.recipe-image-delete').forEach(function(btn) {
+			if (btn.dataset.pending) return;
+			btn.addEventListener('click', function() {
+				var imageId = this.dataset.imageId;
+				if (!imageId) return;
+				var slide = this.closest('.recipe-carousel-slide');
+				if (!slide) return;
+				pendingDeletes.push(parseInt(imageId, 10));
+				slide.remove();
+				updateArrows();
+				var remaining = carouselInner && carouselInner.querySelectorAll('.recipe-carousel-slide');
+				if (remaining.length > 0) {
+					remaining[0].classList.add('active');
+					var firstImg = remaining[0].querySelector('.recipe-carousel-img');
+					if (firstImg) firstImg.classList.add('active');
+				} else if (carousel) {
+					carousel.style.display = 'none';
+				}
+			});
+		});
+
+		// Save: apply image changes first, then submit form
+		function onFormSubmit(e) {
+			if (pendingUploads.length === 0 && pendingDeletes.length === 0) return;
+			e.preventDefault();
+			var uploadPromises = pendingUploads.map(function(file) {
+				var fd = new FormData();
+				fd.append('images', file);
+				return fetch('/Recipe/' + recipeId + '/upload-image', { method: 'POST', body: fd, credentials: 'same-origin' })
+					.then(function(r) { return r.json(); })
+					.then(function(data) { if (!data.success) throw new Error(data.error || 'Upload failed'); });
+			});
+			var deletePromises = pendingDeletes.map(function(id) {
+				return fetch('/Recipe/' + recipeId + '/delete-image/' + id, { method: 'POST', credentials: 'same-origin' })
+					.then(function(r) { return r.json(); })
+					.then(function(data) { if (!data.success) throw new Error(data.error || 'Delete failed'); });
+			});
+			Promise.all(uploadPromises.concat(deletePromises)).then(function() {
+				pendingUploads = [];
+				pendingDeletes = [];
+				form.removeEventListener('submit', onFormSubmit);
+				form.submit();
+			}).catch(function(err) {
+				alert(err.message || 'Failed to save images');
+			});
+			return false;
+		}
+		form.addEventListener('submit', onFormSubmit);
+	})();
+	</script>
+{% endblock %}

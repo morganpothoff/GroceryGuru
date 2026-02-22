@@ -6,6 +6,7 @@ from flask import *
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_login import LoginManager
 from datetime import datetime, date
+from pathlib import Path
 import json
 import os
 import Functions
@@ -22,7 +23,10 @@ from database import (
 	find_matching_inventory_item, add_inventory_count,
 	update_inventory_ingredient, soft_delete_inventory_ingredient,
 	update_list_ingredient, soft_delete_list_ingredient,
+	create_recipe, update_recipe, soft_delete_recipe,
+	upsert_recipe_rating, create_recipe_comment, create_recipe_image, delete_recipe_image,
 )
+import recipe_extractor
 
 
 app = Flask(__name__, static_url_path="/static")
@@ -433,6 +437,251 @@ def add_pantry_item():
 	except Exception as error:
 		traceback.print_exc()
 		return jsonify({"success": False, "error": str(error)}), 500
+
+
+# ————————————————————————————————— Recipes ———————————————————————————————— #
+RECIPE_CATEGORIES = ["Desserts", "Dinners", "Breakfasts"]
+
+
+@app.route("/Recipes")
+@login_required
+def recipes_index():
+	"""Recipes home: show category links (Desserts, Dinners, Breakfasts, Others)."""
+	all_recipes = database.Select.get_Recipes_by_Persons_id(current_user.id)
+	# Build category counts
+	category_counts = {}
+	for cat in RECIPE_CATEGORIES:
+		category_counts[cat] = sum(1 for r in all_recipes if (r.category or "").strip() == cat)
+	category_counts["Others"] = sum(1 for r in all_recipes if not (r.category or "").strip())
+	return render_template(
+		"Recipes.j2",
+		categories=RECIPE_CATEGORIES,
+		category_counts=category_counts,
+		current_page="recipes",
+	)
+
+
+@app.route("/Recipes/Add", methods=["GET", "POST"])
+@login_required
+def add_recipe():
+	"""Add a recipe: manual form or import from URL."""
+	if request.method == "POST":
+		source_url = request.form.get("source_url", "").strip()
+		title = request.form.get("title", "").strip()
+		ingredients = request.form.get("ingredients", "")
+		steps = request.form.get("steps", "")
+		special_notes = request.form.get("special_notes", "")
+		category = request.form.get("category", "").strip()
+		# Import from URL when URL is provided and no manual title (user expects auto-import)
+		if source_url and not title:
+			try:
+				from urllib.parse import urlparse
+				parsed = urlparse(source_url)
+				if not parsed.scheme:
+					source_url = "https://" + source_url
+				data = recipe_extractor.extract_recipe_from_url(source_url)
+				if data:
+					rid = create_recipe(
+						title=data["title"],
+						Persons_id=current_user.id,
+						ingredients=data.get("ingredients", ""),
+						steps=data.get("steps", ""),
+						special_notes=data.get("special_notes", ""),
+						source_url=data.get("source_url", source_url),
+						category=data.get("category", ""),
+						image_url=data.get("image_url", ""),
+					)
+					return redirect(url_for("recipe_detail", recipe_id=rid))
+				# Extraction failed: show form with error and pre-filled URL
+				return render_template(
+					"AddRecipe.j2",
+					error="Could not extract recipe from this URL. Add it manually below.",
+					source_url=source_url,
+					title="",
+					ingredients="",
+					steps="",
+					special_notes="",
+					category="",
+					image_url="",
+					current_page="recipes",
+				)
+			except Exception as e:
+				traceback.print_exc()
+				return render_template(
+					"AddRecipe.j2",
+					error=f"Could not fetch URL: {e}.",
+					source_url=source_url,
+					title="",
+					ingredients="",
+					steps="",
+					special_notes="",
+					category="",
+					image_url="",
+					current_page="recipes",
+				)
+		# Manual add
+		image_url = request.form.get("image_url", "").strip()
+		if not title:
+			return render_template(
+				"AddRecipe.j2",
+				error="Recipe title is required.",
+				source_url=source_url,
+				ingredients=ingredients,
+				steps=steps,
+				special_notes=special_notes,
+				category=category,
+				image_url=image_url or "",
+				current_page="recipes",
+			), 400
+		rid = create_recipe(
+			title=title,
+			Persons_id=current_user.id,
+			ingredients=ingredients,
+			steps=steps,
+			special_notes=special_notes or None,
+			source_url=source_url or None,
+			category=category or None,
+			image_url=image_url or None,
+		)
+		return redirect(url_for("recipe_detail", recipe_id=rid))
+	return render_template("AddRecipe.j2", current_page="recipes")
+
+
+@app.route("/Recipes/<category>")
+@login_required
+def recipes_by_category(category: str):
+	"""List recipes in a category (Desserts, Dinners, Breakfasts, Others)."""
+	recipes = database.Select.get_Recipes_by_category(current_user.id, category)
+	display_name = category if category and category != "Others" else "Others"
+	return render_template(
+		"RecipesCategory.j2",
+		category=display_name,
+		recipes=recipes,
+		current_page="recipes",
+	)
+
+
+@app.route("/Recipe/<int:recipe_id>", methods=["GET", "POST"])
+@login_required
+def recipe_detail(recipe_id: int):
+	"""Recipe profile: view, edit, delete, rate, and comment."""
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return "Recipe not found or you don't have access to it.", 404
+	if request.method == "POST":
+		action = request.form.get("action")
+		if action == "delete":
+			soft_delete_recipe(recipe_id)
+			return redirect(url_for("recipes_index"))
+		if action == "update":
+			update_recipe(
+				recipe_id,
+				title=request.form.get("title", "").strip(),
+				ingredients=request.form.get("ingredients", ""),
+				steps=request.form.get("steps", ""),
+				special_notes=request.form.get("special_notes", "").strip() or None,
+				source_url=request.form.get("source_url", "").strip() or None,
+				category=request.form.get("category", "").strip() or None,
+				image_url=request.form.get("image_url", "").strip() or None,
+			)
+			return redirect(url_for("recipe_detail", recipe_id=recipe_id))
+		if action == "rate":
+			try:
+				rating = int(request.form.get("rating", 0))
+				if 1 <= rating <= 5:
+					upsert_recipe_rating(recipe_id, current_user.id, rating)
+			except (ValueError, TypeError):
+				pass
+			return redirect(url_for("recipe_detail", recipe_id=recipe_id))
+		if action == "comment":
+			comment_body = request.form.get("comment_body", "").strip()
+			if comment_body:
+				try:
+					create_recipe_comment(recipe_id, current_user.id, comment_body)
+				except ValueError:
+					pass
+			return redirect(url_for("recipe_detail", recipe_id=recipe_id))
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return redirect(url_for("recipes_index"))
+	ingredients_list = [ln.strip() for ln in (recipe.ingredients or "").splitlines() if ln.strip()]
+	steps_list = [ln.strip() for ln in (recipe.steps or "").splitlines() if ln.strip()]
+	avg_rating = database.Select.get_recipe_average_rating(recipe_id)
+	rating_count = database.Select.get_recipe_rating_count(recipe_id)
+	user_rating = database.Select.get_user_recipe_rating(recipe_id, current_user.id)
+	comments = database.Select.get_recipe_comments(recipe_id)
+	recipe_images = database.Select.get_recipe_images(recipe_id)
+	# Build list of {url, id}: uploaded images have id for delete; legacy image_url has id=None
+	recipe_images_data = [{"url": url_for("static", filename=img.file_path), "id": img.id} for img in recipe_images]
+	if not recipe_images_data and getattr(recipe, "image_url", None):
+		recipe_images_data = [{"url": recipe.image_url, "id": None}]
+	return render_template(
+		"Recipe.j2",
+		recipe=recipe,
+		ingredients_list=ingredients_list,
+		steps_list=steps_list,
+		categories=RECIPE_CATEGORIES,
+		average_rating=avg_rating,
+		rating_count=rating_count,
+		user_rating=user_rating,
+		comments=comments,
+		recipe_images_data=recipe_images_data,
+		current_page="recipes",
+	)
+
+
+@app.route("/Recipe/<int:recipe_id>/delete-image/<int:image_id>", methods=["POST"])
+@login_required
+def delete_recipe_image_route(recipe_id: int, image_id: int):
+	"""Delete a recipe image (only for RecipeImages, not legacy image_url)."""
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return jsonify({"success": False, "error": "Recipe not found"}), 404
+	if delete_recipe_image(recipe_id, image_id):
+		return jsonify({"success": True})
+	return jsonify({"success": False, "error": "Image not found"}), 404
+
+
+@app.route("/Recipe/<int:recipe_id>/upload-image", methods=["POST"])
+@login_required
+def upload_recipe_image(recipe_id: int):
+	"""Upload one or more images for a recipe. Accepts multipart form with 'image' or 'images[]'."""
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return jsonify({"success": False, "error": "Recipe not found"}), 404
+	ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+	upload_dir = Path(app.root_path) / "static" / "uploads" / "recipes"
+	upload_dir.mkdir(parents=True, exist_ok=True)
+	files = request.files.getlist("images") or request.files.getlist("image")
+	if not files or (len(files) == 1 and files[0].filename == ""):
+		return jsonify({"success": False, "error": "No file selected"}), 400
+	uploaded = []
+	for f in files:
+		if not f or not f.filename:
+			continue
+		ext = Path(f.filename).suffix.lower()
+		if ext not in ALLOWED_EXT:
+			continue
+		import uuid
+		stem = werkzeug.utils.secure_filename(Path(f.filename).stem) or "img"
+		safe_name = f"{recipe_id}_{stem}_{uuid.uuid4().hex[:8]}{ext}"
+		dest = upload_dir / safe_name
+		f.save(str(dest))
+		rel_path = f"uploads/recipes/{safe_name}"
+		create_recipe_image(recipe_id, rel_path)
+		uploaded.append(url_for("static", filename=rel_path))
+	return jsonify({"success": True, "images": uploaded})
+
+
+@app.route("/DeleteRecipe/<int:recipe_id>", methods=["POST"])
+@login_required
+def delete_recipe(recipe_id: int):
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return "Recipe not found or you don't have access to it.", 404
+	soft_delete_recipe(recipe_id)
+	redirect_to = request.form.get("redirect_to") or url_for("recipes_index")
+	return redirect(redirect_to)
 
 
 if __name__ == "__main__":

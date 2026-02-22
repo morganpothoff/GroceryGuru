@@ -1,0 +1,58 @@
+{% extends "Base.j2" %}
+
+{% block title %}Add recipe — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<p style="margin: 0 0 1rem 0;"><a href="{{ url_for('recipes_index') }}">← Back to Recipes</a></p>
+		<h1>Add recipe</h1>
+		<p class="text-muted">Import from a recipe URL, or add manually below.</p>
+
+		{% if error %}
+			<div class="alert-error">{{ error }}</div>
+		{% endif %}
+
+		<form method="post" action="{{ url_for('add_recipe') }}" class="recipe-form">
+			<div class="form-group">
+				<label for="source_url">Import from URL <span class="text-muted">(paste link to extract ingredients, steps, and notes)</span></label>
+				<input type="url" id="source_url" name="source_url" value="{{ source_url|default('', true) }}" placeholder="https://allrecipes.com/recipe/...">
+			</div>
+			<p class="text-muted" style="font-size: 0.9rem; margin: 0 0 1rem 0;">If you paste a URL and click "Import", the recipe will be extracted automatically. Otherwise fill in the fields below.</p>
+
+			<hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid var(--border);">
+
+			<div class="form-group">
+				<label for="title">Title <span class="text-muted">(required for manual add)</span></label>
+				<input type="text" id="title" name="title" value="{{ title|default('', true) }}" placeholder="e.g. Classic Chocolate Chip Cookies">
+			</div>
+			<div class="form-group">
+				<label for="image_url">Image URL <span class="text-muted">(optional)</span></label>
+				<input type="url" id="image_url" name="image_url" value="{{ image_url|default('', true) }}" placeholder="https://example.com/recipe-photo.jpg">
+			</div>
+			<div class="form-group">
+				<label for="category">Category <span class="text-muted">(optional)</span></label>
+				<select id="category" name="category">
+					<option value="">Others</option>
+					<option value="Desserts" {% if category|default('') == 'Desserts' %}selected{% endif %}>Desserts</option>
+					<option value="Dinners" {% if category|default('') == 'Dinners' %}selected{% endif %}>Dinners</option>
+					<option value="Breakfasts" {% if category|default('') == 'Breakfasts' %}selected{% endif %}>Breakfasts</option>
+				</select>
+			</div>
+			<div class="form-group">
+				<label for="ingredients">Ingredients</label>
+				<textarea id="ingredients" name="ingredients" rows="8" placeholder="One ingredient per line...">{{ ingredients|default('', true) }}</textarea>
+			</div>
+			<div class="form-group">
+				<label for="steps">Steps</label>
+				<textarea id="steps" name="steps" rows="10" placeholder="One step per line...">{{ steps|default('', true) }}</textarea>
+			</div>
+			<div class="form-group">
+				<label for="special_notes">Special notes <span class="text-muted">(optional)</span></label>
+				<textarea id="special_notes" name="special_notes" rows="3" placeholder="Prep time, cook time, tips...">{{ special_notes|default('', true) }}</textarea>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="btn btn-primary">Add recipe</button>
+			</div>
+		</form>
+	</div>
+{% endblock %}
