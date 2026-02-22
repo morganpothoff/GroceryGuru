@@ -1,4 +1,6 @@
-"""Unit tests for the Recipes feature: CRUD, routes, and recipe extractor."""
+"""Unit tests for the Recipes feature: CRUD, routes, recipe extractor, and recipe images."""
+import io
+
 import pytest
 
 from database import (
@@ -6,6 +8,8 @@ from database import (
 	create_recipe,
 	update_recipe,
 	soft_delete_recipe,
+	create_recipe_image,
+	delete_recipe_image,
 )
 from database import Select
 
@@ -159,6 +163,66 @@ class TestRecipeSelect:
 		recipe = Select.get_Recipe_by_id(test_recipe, other_id)
 		assert recipe is None
 
+	def test_get_recipe_images_returns_empty_for_no_images(self, test_user_id, test_recipe):
+		"""get_recipe_images returns empty list when recipe has no images."""
+		images = Select.get_recipe_images(test_recipe)
+		assert images == []
+
+	def test_get_recipe_images_returns_ordered_by_sort_order(self, test_user_id, test_recipe):
+		"""get_recipe_images returns images in sort_order (first uploaded first)."""
+		create_recipe_image(test_recipe, "uploads/recipes/first.jpg")
+		create_recipe_image(test_recipe, "uploads/recipes/second.jpg")
+		create_recipe_image(test_recipe, "uploads/recipes/third.jpg")
+		images = Select.get_recipe_images(test_recipe)
+		assert len(images) == 3
+		assert images[0].file_path == "uploads/recipes/first.jpg"
+		assert images[1].file_path == "uploads/recipes/second.jpg"
+		assert images[2].file_path == "uploads/recipes/third.jpg"
+
+
+# ————————————————————————————————— Database: recipe images —————————————————— #
+
+class TestRecipeImages:
+	"""Tests for create_recipe_image and delete_recipe_image database functions."""
+
+	def test_create_recipe_image(self, test_user_id, test_recipe):
+		"""create_recipe_image adds an image and returns its id."""
+		img_id = create_recipe_image(test_recipe, "uploads/recipes/test.jpg")
+		assert img_id is not None
+		images = Select.get_recipe_images(test_recipe)
+		assert len(images) == 1
+		assert images[0].id == img_id
+		assert images[0].file_path == "uploads/recipes/test.jpg"
+
+	def test_create_recipe_image_multiple_increments_sort_order(self, test_user_id, test_recipe):
+		"""Multiple images get ascending sort_order (first uploaded = first displayed)."""
+		create_recipe_image(test_recipe, "uploads/recipes/a.jpg")
+		create_recipe_image(test_recipe, "uploads/recipes/b.jpg")
+		images = Select.get_recipe_images(test_recipe)
+		assert images[0].sort_order == 0
+		assert images[1].sort_order == 1
+
+	def test_delete_recipe_image(self, test_user_id, test_recipe):
+		"""delete_recipe_image removes the image from the database."""
+		img_id = create_recipe_image(test_recipe, "uploads/recipes/to_delete.jpg")
+		assert len(Select.get_recipe_images(test_recipe)) == 1
+		result = delete_recipe_image(test_recipe, img_id)
+		assert result is True
+		assert len(Select.get_recipe_images(test_recipe)) == 0
+
+	def test_delete_recipe_image_returns_false_for_nonexistent(self, test_user_id, test_recipe):
+		"""delete_recipe_image returns False when image id does not exist."""
+		result = delete_recipe_image(test_recipe, 99999)
+		assert result is False
+
+	def test_delete_recipe_image_returns_false_for_wrong_recipe(self, test_user_id, test_recipe):
+		"""delete_recipe_image returns False when image belongs to different recipe."""
+		rid2 = create_recipe("Other Recipe", test_user_id)
+		img_id = create_recipe_image(rid2, "uploads/recipes/other.jpg")
+		result = delete_recipe_image(test_recipe, img_id)
+		assert result is False
+		assert len(Select.get_recipe_images(rid2)) == 1
+
 
 # ————————————————————————————————— Routes: index & category ————————————————— #
 
@@ -302,6 +366,123 @@ class TestRecipeDetailRoute:
 		# test_recipe owned by test_user_id; logged_in_client is a different user
 		resp = client.get(f"/Recipe/{test_recipe}", follow_redirects=False)
 		assert resp.status_code == 404
+
+	def test_recipe_detail_shows_images_when_present(self, logged_in_client):
+		"""GET /Recipe/<id> includes recipe images in the page when recipe has images."""
+		client, user_id = logged_in_client
+		rid = create_recipe("Recipe With Images", user_id)
+		create_recipe_image(rid, "uploads/recipes/photo1.jpg")
+		resp = client.get(f"/Recipe/{rid}", follow_redirects=True)
+		assert resp.status_code == 200
+		assert b"Recipe With Images" in resp.data
+		assert b"uploads/recipes/photo1.jpg" in resp.data
+		assert b"recipe-image-carousel" in resp.data
+
+
+# ————————————————————————————————— Routes: recipe image upload ————————————————— #
+
+class TestRecipeImageUpload:
+	"""Tests for POST /Recipe/<id>/upload-image."""
+
+	def test_upload_recipe_image_requires_login(self, client):
+		"""POST /Recipe/1/upload-image redirects when not authenticated."""
+		img = (io.BytesIO(b"fake image content"), "test.jpg")
+		resp = client.post(
+			"/Recipe/1/upload-image",
+			data={"images": img},
+			buffered=True,
+			follow_redirects=False,
+		)
+		assert resp.status_code in (302, 401)
+		if resp.status_code == 302:
+			assert "Login" in resp.headers.get("Location", "")
+
+	def test_upload_recipe_image_success(self, logged_in_client):
+		"""POST /Recipe/<id>/upload-image uploads image and returns success."""
+		client, user_id = logged_in_client
+		rid = create_recipe("Upload Test", user_id)
+		img = (io.BytesIO(b"\xff\xd8\xff\xe0\x00\x10JFIF"), "photo.jpg")
+		resp = client.post(
+			f"/Recipe/{rid}/upload-image",
+			data={"images": img},
+			buffered=True,
+		)
+		assert resp.status_code == 200
+		data = resp.get_json()
+		assert data["success"] is True
+		assert "images" in data
+		assert len(data["images"]) == 1
+		images = Select.get_recipe_images(rid)
+		assert len(images) == 1
+		assert "jpg" in images[0].file_path
+
+	def test_upload_recipe_image_404_for_nonexistent(self, logged_in_client):
+		"""POST /Recipe/99999/upload-image returns 404."""
+		client, _ = logged_in_client
+		img = (io.BytesIO(b"fake"), "test.jpg")
+		resp = client.post(
+			"/Recipe/99999/upload-image",
+			data={"images": img},
+			buffered=True,
+		)
+		assert resp.status_code == 404
+		data = resp.get_json()
+		assert data["success"] is False
+
+	def test_upload_recipe_image_404_for_other_user_recipe(self, logged_in_client, test_user_id, test_recipe):
+		"""POST /Recipe/<id>/upload-image returns 404 when recipe belongs to another user."""
+		client, _ = logged_in_client
+		img = (io.BytesIO(b"fake"), "test.jpg")
+		resp = client.post(
+			f"/Recipe/{test_recipe}/upload-image",
+			data={"images": img},
+			buffered=True,
+		)
+		assert resp.status_code == 404
+
+
+# ————————————————————————————————— Routes: recipe image delete ————————————————— #
+
+class TestRecipeImageDelete:
+	"""Tests for POST /Recipe/<id>/delete-image/<image_id>."""
+
+	def test_delete_recipe_image_requires_login(self, client):
+		"""POST /Recipe/1/delete-image/1 redirects when not authenticated."""
+		resp = client.post("/Recipe/1/delete-image/1", follow_redirects=False)
+		assert resp.status_code in (302, 401)
+
+	def test_delete_recipe_image_success(self, logged_in_client):
+		"""POST /Recipe/<id>/delete-image/<image_id> deletes the image."""
+		client, user_id = logged_in_client
+		rid = create_recipe("Delete Image Test", user_id)
+		img_id = create_recipe_image(rid, "uploads/recipes/to_delete.jpg")
+		assert len(Select.get_recipe_images(rid)) == 1
+		resp = client.post(
+			f"/Recipe/{rid}/delete-image/{img_id}",
+			follow_redirects=False,
+		)
+		assert resp.status_code == 200
+		data = resp.get_json()
+		assert data["success"] is True
+		assert len(Select.get_recipe_images(rid)) == 0
+
+	def test_delete_recipe_image_404_for_nonexistent_recipe(self, logged_in_client):
+		"""POST /Recipe/99999/delete-image/1 returns 404."""
+		client, _ = logged_in_client
+		resp = client.post("/Recipe/99999/delete-image/1", follow_redirects=False)
+		assert resp.status_code == 404
+
+	def test_delete_recipe_image_404_for_other_user_recipe(self, logged_in_client, test_user_id, test_recipe):
+		"""POST /Recipe/<id>/delete-image/<image_id> returns 404 when recipe belongs to another user."""
+		client, _ = logged_in_client
+		img_id = create_recipe_image(test_recipe, "uploads/recipes/other.jpg")
+		resp = client.post(
+			f"/Recipe/{test_recipe}/delete-image/{img_id}",
+			follow_redirects=False,
+		)
+		assert resp.status_code == 404
+		# Image should still exist (owned by test_user_id)
+		assert len(Select.get_recipe_images(test_recipe)) == 1
 
 
 # ————————————————————————————————— Routes: delete recipe ————————————————————— #
