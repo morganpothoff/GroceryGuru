@@ -451,9 +451,10 @@ def create_recipe_image(recipe_id: int, file_path: str) -> int:
 	with Session(engine) as session:
 		# Get max sort_order
 		from sqlalchemy import func
-		max_order = session.query(func.coalesce(func.max(RecipeImages.sort_order), -1)).filter(
+		result = session.query(func.coalesce(func.max(RecipeImages.sort_order), -1)).filter(
 			getattr(RecipeImages, "Recipes.id") == recipe_id,
-		).scalar() or -1
+		).scalar()
+		max_order = -1 if result is None else result
 		stmt = insert(RecipeImages.__table__).values(**{
 			"Recipes.id": recipe_id,
 			"file_path": file_path,
