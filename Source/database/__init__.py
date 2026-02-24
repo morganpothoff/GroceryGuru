@@ -146,6 +146,29 @@ def _migrate_recipe_images_if_needed():
 			""")
 
 
+def _migrate_friend_requests_if_needed():
+	"""Create FriendRequests table for friend requests and friendships."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='FriendRequests'")
+		if cur.fetchone() is None:
+			raw.execute("""
+				CREATE TABLE "FriendRequests" (
+					"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+					"requester_id" INTEGER NOT NULL,
+					"addressee_id" INTEGER NOT NULL,
+					"message" TEXT DEFAULT '',
+					"status" TEXT NOT NULL DEFAULT 'pending',
+					"created_at" TEXT NOT NULL DEFAULT (datetime('now')),
+					FOREIGN KEY ("requester_id") REFERENCES "Persons"("id"),
+					FOREIGN KEY ("addressee_id") REFERENCES "Persons"("id"),
+					UNIQUE ("requester_id", "addressee_id")
+				)
+			""")
+
+
 _init_schema_if_needed()
 _migrate_add_notes_if_needed()
 _migrate_recipes_table_if_needed()
@@ -153,6 +176,7 @@ _migrate_recipes_image_url_if_needed()
 _migrate_recipe_ratings_if_needed()
 _migrate_recipe_comments_if_needed()
 _migrate_recipe_images_if_needed()
+_migrate_friend_requests_if_needed()
 
 # reflect the tables
 Base = automap_base()
@@ -170,6 +194,7 @@ Recipes = Base.classes.Recipes
 RecipeRatings = Base.classes.RecipeRatings
 RecipeComments = Base.classes.RecipeComments
 RecipeImages = Base.classes.RecipeImages
+FriendRequests = Base.classes.FriendRequests
 
 
 def get_user_count():
@@ -486,4 +511,119 @@ def delete_recipe_image(recipe_id: int, image_id: int) -> bool:
 			full_path.unlink()
 		except OSError:
 			pass
+	return True
+
+
+# ————————————————————————————————— Friends ———————————————————————————————— #
+
+def create_friend_request(requester_id: int, addressee_id: int, message: str = "") -> int:
+	"""Create a friend request. Raises ValueError if duplicate or invalid. Returns request id."""
+	if requester_id == addressee_id:
+		raise ValueError("You cannot send a friend request to yourself.")
+	message = (message or "").strip()
+	with Session(engine) as session:
+		# Check reverse: if addressee already sent us a pending request, accept it instead
+		reverse = session.query(FriendRequests).filter(
+			FriendRequests.requester_id == addressee_id,
+			FriendRequests.addressee_id == requester_id,
+			FriendRequests.status == "pending",
+		).first()
+		if reverse:
+			reverse.status = "accepted"
+			session.commit()
+			return reverse.id  # Return the request we accepted
+
+		existing = session.query(FriendRequests).filter(
+			FriendRequests.requester_id == requester_id,
+			FriendRequests.addressee_id == addressee_id,
+		).first()
+		if existing:
+			if existing.status == "pending":
+				raise ValueError("A friend request is already pending.")
+			if existing.status == "accepted":
+				raise ValueError("You are already friends with this user.")
+			# Declined before: allow new request by updating
+			existing.status = "pending"
+			existing.message = message
+			session.commit()
+			return existing.id
+		stmt = insert(FriendRequests.__table__).values(
+			requester_id=requester_id,
+			addressee_id=addressee_id,
+			message=message,
+			status="pending",
+		)
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
+
+
+def accept_friend_request(request_id: int, addressee_id: int) -> bool:
+	"""Accept a friend request. Addressee must be the recipient. Returns True if accepted."""
+	with Session(engine) as session:
+		row = session.query(FriendRequests).filter(
+			FriendRequests.id == request_id,
+			FriendRequests.addressee_id == addressee_id,
+			FriendRequests.status == "pending",
+		).first()
+		if not row:
+			return False
+		row.status = "accepted"
+		session.commit()
+		return True
+
+
+def decline_friend_request(request_id: int, addressee_id: int) -> bool:
+	"""Decline a friend request. Returns True if declined."""
+	with Session(engine) as session:
+		row = session.query(FriendRequests).filter(
+			FriendRequests.id == request_id,
+			FriendRequests.addressee_id == addressee_id,
+			FriendRequests.status == "pending",
+		).first()
+		if not row:
+			return False
+		row.status = "declined"
+		session.commit()
+		return True
+
+
+def unfriend(user_id: int, friend_id: int) -> bool:
+	"""Remove friendship between user_id and friend_id. Returns True if removed."""
+	from sqlalchemy import delete as sql_delete
+	from sqlalchemy import or_, and_
+	with Session(engine) as session:
+		row = session.query(FriendRequests).filter(
+			FriendRequests.status == "accepted",
+			or_(
+				and_(FriendRequests.requester_id == user_id, FriendRequests.addressee_id == friend_id),
+				and_(FriendRequests.requester_id == friend_id, FriendRequests.addressee_id == user_id),
+			),
+		).first()
+		if not row:
+			return False
+		session.execute(sql_delete(FriendRequests.__table__).where(FriendRequests.__table__.c.id == row.id))
+		session.commit()
+		return True
+
+
+def update_person_profile(person_id: int, name: str = None, email: str = None) -> bool:
+	"""Update a user's name and/or email. Validates email uniqueness. Returns True on success."""
+	tbl = Persons.__table__
+	updates = {}
+	if name is not None:
+		updates["name"] = (name or "").strip() or None
+	if email is not None:
+		updates["email"] = (email or "").strip() or None
+	if not updates:
+		return True
+	with Session(engine) as session:
+		email_val = updates.get("email")
+		if email_val is not None and email_val:
+			existing = session.query(Persons).filter(Persons.email == email_val, Persons.id != person_id).first()
+			if existing:
+				raise ValueError(f"Email '{email_val}' is already in use.")
+		stmt = update(tbl).where(tbl.c.id == person_id).values(**updates)
+		session.execute(stmt)
+		session.commit()
 	return True

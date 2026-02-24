@@ -1021,3 +1021,175 @@ a:hover {
 	padding: 0.75rem 0;
 	font-size: 0.95rem;
 }
+
+/* --- Friends & Notifications --- */
+.btn-outline {
+	background: transparent;
+	color: var(--accent);
+	border: 2px solid var(--accent);
+}
+
+.btn-outline:hover {
+	background: var(--accent-bg);
+}
+
+.form-control {
+	width: 100%;
+	padding: 0.75rem 1rem;
+	font-size: 1rem;
+	font-family: inherit;
+	background: var(--bg-input);
+	border: 2px solid var(--border);
+	border-radius: 8px;
+	color: var(--text-primary);
+}
+
+.form-control:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 4px var(--accent-bg);
+}
+
+.notifications-wrapper {
+	position: relative;
+}
+
+.notifications-btn {
+	position: relative;
+}
+
+.notification-badge {
+	position: absolute;
+	top: -4px;
+	right: -4px;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 5px;
+	font-size: 0.7rem;
+	font-weight: 700;
+	line-height: 18px;
+	text-align: center;
+	background: var(--error);
+	color: white;
+	border-radius: 9px;
+}
+
+.profile-friend-count {
+	margin: 1rem 0;
+}
+
+.friend-count-link {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.35rem;
+	padding: 0.5rem 1rem;
+	background: var(--accent-bg);
+	border-radius: 8px;
+	text-decoration: none;
+	color: var(--accent);
+	font-weight: 600;
+	transition: background 0.2s, color 0.2s;
+}
+
+.friend-count-link:hover {
+	background: var(--accent);
+	color: white;
+}
+
+.friend-count-num {
+	font-size: 1.25rem;
+}
+
+.friends-search-wrapper {
+	margin-bottom: 1rem;
+}
+
+.friends-search-wrapper .form-control {
+	margin-bottom: 0;
+}
+
+.friends-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.friends-list-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	padding: 1rem;
+	margin-bottom: 0.5rem;
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+
+.friend-info {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+
+.friend-name {
+	font-weight: 600;
+	color: var(--text-primary);
+}
+
+.friend-email {
+	font-size: 0.9rem;
+}
+
+.friend-actions form {
+	display: inline;
+}
+
+.form-actions {
+	display: flex;
+	gap: 0.75rem;
+	margin-top: 1rem;
+}
+
+.form-actions .btn {
+	flex-shrink: 0;
+}
+
+.notifications-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.notification-item {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	padding: 1rem;
+	margin-bottom: 0.75rem;
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+
+.notification-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.notification-message {
+	margin: 0.5rem 0 0 0;
+	font-style: italic;
+}
+
+.notification-actions {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.notification-actions form {
+	display: inline;
+}

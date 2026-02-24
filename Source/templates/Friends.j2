@@ -1,0 +1,53 @@
+{% extends "Base.j2" %}
+
+{% block title %}Friends — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>Friends</h1>
+		<p class="text-muted">Manage your connections and find new friends by email.</p>
+
+		<div class="action-buttons" style="margin-bottom: 1.5rem;">
+			<a href="{{ url_for('add_friend') }}" class="btn btn-primary">Add friend by email</a>
+		</div>
+
+		<h2>Your friends ({{ friends | length }})</h2>
+		{% if friends %}
+			<div class="friends-search-wrapper">
+				<input type="text" id="friends-search" class="form-control" placeholder="Search friends by name or email..." autocomplete="off">
+			</div>
+			<ul class="friends-list" id="friends-list">
+				{% for friend in friends %}
+					<li class="friends-list-item" data-search="{{ (friend.name or '') | lower }} {{ (friend.email or '') | lower }}">
+						<div class="friend-info">
+							<span class="friend-name">{{ friend.name | default(friend.email) }}</span>
+							<span class="friend-email text-muted">{{ friend.email }}</span>
+						</div>
+						<form method="POST" action="{{ url_for('unfriend_route', friend_id=friend.id) }}" class="friend-actions" onsubmit="return confirm('Remove {{ friend.name | default(friend.email) }} from your friends?');">
+							<button type="submit" class="btn btn-sm btn-outline">Unfriend</button>
+						</form>
+					</li>
+				{% endfor %}
+			</ul>
+		{% else %}
+			<p class="text-muted">You don't have any friends yet. <a href="{{ url_for('add_friend') }}">Add a friend by email</a> to get started.</p>
+		{% endif %}
+	</div>
+
+	<script>
+	(function() {
+		var search = document.getElementById('friends-search');
+		var list = document.getElementById('friends-list');
+		if (search && list) {
+			search.addEventListener('input', function() {
+				var q = (this.value || '').toLowerCase().trim();
+				var items = list.querySelectorAll('.friends-list-item');
+				items.forEach(function(item) {
+					var text = (item.getAttribute('data-search') || '');
+					item.style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
+				});
+			});
+		}
+	})();
+	</script>
+{% endblock %}
