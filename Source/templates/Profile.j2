@@ -9,6 +9,32 @@
 		{% if current_user.is_authenticated %}
 			<h2>Hi, {{ current_user.username | default(current_user.email) }}</h2>
 			<p class="text-muted">Account: {{ current_user.email }}</p>
+
+			{# Friend count — clickable, links to Friends page #}
+			<div class="profile-friend-count">
+				<a href="{{ url_for('friends_list') }}" class="friend-count-link" title="View friends">
+					{% set fc = friend_count | default(0) %}
+					<span class="friend-count-num">{{ fc }}</span>
+					<span class="friend-count-label">friend{{ 's' if fc != 1 else '' }}</span>
+				</a>
+			</div>
+
+			<div class="profile-section">
+				<h3>Edit profile</h3>
+				{% if profile_error %}<div class="alert-error">{{ profile_error }}</div>{% endif %}
+				<form method="POST" class="profile-edit-form">
+					<input type="hidden" name="action" value="update_profile">
+					<div class="form-group">
+						<label for="profile_name">Display name</label>
+						<input type="text" id="profile_name" name="name" value="{{ current_user.username | default('') }}" placeholder="e.g. Alex">
+					</div>
+					<div class="form-group">
+						<label for="profile_email">Email</label>
+						<input type="email" id="profile_email" name="email" value="{{ current_user.email | default('') }}" placeholder="you@example.com" required>
+					</div>
+					<button type="submit" class="btn btn-primary">Save changes</button>
+				</form>
+			</div>
 		{% else %}
 			<h2>Preferences</h2>
 		{% endif %}

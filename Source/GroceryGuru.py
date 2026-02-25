@@ -25,6 +25,8 @@ from database import (
 	update_list_ingredient, soft_delete_list_ingredient,
 	create_recipe, update_recipe, soft_delete_recipe,
 	upsert_recipe_rating, create_recipe_comment, create_recipe_image, delete_recipe_image,
+	create_friend_request, accept_friend_request, decline_friend_request, unfriend,
+	update_person_profile,
 )
 import recipe_extractor
 
@@ -40,6 +42,15 @@ login_manager.login_view = "login"
 @app.context_processor
 def inject_current_year():
 	return {"current_year": date.today().year}
+
+
+@app.context_processor
+def inject_notifications():
+	"""Inject pending friend request count and list for bell icon (logged-in users only)."""
+	if current_user.is_authenticated:
+		pending = database.Select.get_pending_friend_requests_for_user(current_user.id)
+		return {"notification_count": len(pending), "pending_friend_requests": pending}
+	return {"notification_count": 0, "pending_friend_requests": []}
 
 
 @app.template_filter("date_str")
@@ -113,9 +124,22 @@ def createAccount():
 		return render_template("CreateAccount.j2")
 
 
-@app.route("/Profile", methods=["GET"])
+@app.route("/Profile", methods=["GET", "POST"])
+@login_required
 def profile():
-	return render_template("Profile.j2")
+	"""Profile page with friend count, edit form, and theme toggle."""
+	friend_count = database.Select.get_friend_count(current_user.id)
+	if request.method == "POST":
+		action = request.form.get("action")
+		if action == "update_profile":
+			try:
+				name = request.form.get("name", "").strip()
+				email = request.form.get("email", "").strip()
+				update_person_profile(current_user.id, name=name or None, email=email or None)
+				return redirect(url_for("profile"))
+			except ValueError as e:
+				return render_template("Profile.j2", friend_count=friend_count, profile_error=str(e))
+	return render_template("Profile.j2", friend_count=friend_count)
 
 
 @app.route("/FAQ")
@@ -682,6 +706,65 @@ def delete_recipe(recipe_id: int):
 	soft_delete_recipe(recipe_id)
 	redirect_to = request.form.get("redirect_to") or url_for("recipes_index")
 	return redirect(redirect_to)
+
+
+# ————————————————————————————————— Friends ———————————————————————————————— #
+
+@app.route("/Friends")
+@login_required
+def friends_list():
+	"""Friends list page: display all friends, search, add friend."""
+	friends = database.Select.get_friends(current_user.id)
+	return render_template("Friends.j2", friends=friends, current_page="friends")
+
+
+@app.route("/Friends/Add", methods=["GET", "POST"])
+@login_required
+def add_friend():
+	"""Search for a user by email and send a friend request."""
+	if request.method == "POST":
+		email = request.form.get("email", "").strip()
+		message = request.form.get("message", "").strip()
+		if not email:
+			return render_template("AddFriend.j2", error="Please enter an email address.")
+		target = Functions.get_user_by_email(email)
+		if target is None:
+			return render_template("AddFriend.j2", error=f"No account found for '{email}'.")
+		try:
+			create_friend_request(current_user.id, target.id, message)
+			return redirect(url_for("friends_list"))
+		except ValueError as e:
+			return render_template("AddFriend.j2", error=str(e))
+	return render_template("AddFriend.j2")
+
+
+@app.route("/Friends/Request/<int:request_id>/accept", methods=["POST"])
+@login_required
+def accept_friend_request_route(request_id: int):
+	accept_friend_request(request_id, current_user.id)
+	return redirect(request.referrer or url_for("friends_list"))
+
+
+@app.route("/Friends/Request/<int:request_id>/decline", methods=["POST"])
+@login_required
+def decline_friend_request_route(request_id: int):
+	decline_friend_request(request_id, current_user.id)
+	return redirect(request.referrer or url_for("friends_list"))
+
+
+@app.route("/Friends/Unfriend/<int:friend_id>", methods=["POST"])
+@login_required
+def unfriend_route(friend_id: int):
+	unfriend(current_user.id, friend_id)
+	return redirect(url_for("friends_list"))
+
+
+@app.route("/Friends/Notifications")
+@login_required
+def notifications():
+	"""Notifications page: pending friend requests (bell content)."""
+	pending = database.Select.get_pending_friend_requests_for_user(current_user.id)
+	return render_template("Notifications.j2", pending_requests=pending)
 
 
 if __name__ == "__main__":

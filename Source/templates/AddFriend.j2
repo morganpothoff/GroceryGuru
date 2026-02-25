@@ -1,0 +1,27 @@
+{% extends "Base.j2" %}
+
+{% block title %}Add friend — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>Add friend</h1>
+		<p class="text-muted">Search for a friend by their email address and send them a friend request.</p>
+
+		{% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
+		<form method="POST" action="{{ url_for('add_friend') }}">
+			<div class="form-group">
+				<label for="email">Friend's email</label>
+				<input type="email" id="email" name="email" value="{{ request.form.email or '' }}" placeholder="friend@example.com" required>
+			</div>
+			<div class="form-group">
+				<label for="message">Message (optional)</label>
+				<textarea id="message" name="message" rows="2" placeholder="e.g. Hey, let's connect on Grocery Guru!">{{ request.form.message or '' }}</textarea>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="btn btn-primary">Send friend request</button>
+				<a href="{{ url_for('friends_list') }}" class="btn btn-outline">Cancel</a>
+			</div>
+		</form>
+	</div>
+{% endblock %}

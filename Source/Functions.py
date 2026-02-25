@@ -76,6 +76,22 @@ def get_user_by_id(cursor, user_id):
 
 
 @connect
+def get_user_by_email(cursor, email: str):
+	"""Return User for the given email, or None if not found."""
+	email = (email or "").strip().lower()
+	if not email:
+		return None
+	cursor.execute('SELECT * FROM "Persons" WHERE LOWER("email") = ?;', (email,))
+	user_info = cursor.fetchone()
+	if user_info is None:
+		return None
+	user_info = dict(user_info)
+	return User(
+		user_info["id"], user_info["email"], user_info["name"], user_info["password"]
+	)
+
+
+@connect
 def add_new_user(cursor, request):
 	"""Attempts to add a new user to the database."""
 	email = request.form["email"]

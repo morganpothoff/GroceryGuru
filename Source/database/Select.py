@@ -161,3 +161,64 @@ def get_recipe_images(recipe_id: int):
 		return session.query(RecipeImages).filter(
 			getattr(RecipeImages, "Recipes.id") == recipe_id,
 		).order_by(RecipeImages.sort_order).all()
+
+
+# ————————————————————————————————— Friends ———————————————————————————————— #
+
+def get_Person_by_email(email: str):
+	"""Return Persons row for the given email, or None if not found."""
+	from database import engine, Persons
+	with Session(engine) as session:
+		return session.query(Persons).filter(Persons.email == (email or "").strip()).first()
+
+
+def get_pending_friend_requests_for_user(addressee_id: int):
+	"""Return pending FriendRequests where addressee_id is the user. Each row has requester info."""
+	from database import engine, FriendRequests, Persons
+	with Session(engine) as session:
+		rows = session.query(FriendRequests, Persons).join(
+			Persons, FriendRequests.requester_id == Persons.id,
+		).filter(
+			FriendRequests.addressee_id == addressee_id,
+			FriendRequests.status == "pending",
+		).order_by(FriendRequests.created_at.desc()).all()
+		return rows
+
+
+def get_friends(Persons_id: int):
+	"""Return list of Persons who are friends with the given user. Uses email and name (username) from Persons."""
+	from database import engine, FriendRequests, Persons
+	from sqlalchemy import or_
+	with Session(engine) as session:
+		friend_ids = set()
+		for fr in session.query(FriendRequests).filter(
+			FriendRequests.status == "accepted",
+			or_(
+				FriendRequests.requester_id == Persons_id,
+				FriendRequests.addressee_id == Persons_id,
+			),
+		).all():
+			oid = fr.addressee_id if fr.requester_id == Persons_id else fr.requester_id
+			friend_ids.add(oid)
+		if not friend_ids:
+			return []
+		return session.query(Persons).filter(Persons.id.in_(friend_ids)).order_by(Persons.name, Persons.email).all()
+
+
+def get_friend_count(Persons_id: int) -> int:
+	"""Return the number of friends for a user."""
+	friends = get_friends(Persons_id)
+	return len(friends)
+
+
+def get_friend_request_by_id(request_id: int, addressee_id: int):
+	"""Return (FriendRequests, Persons) for a pending request if addressee matches, else None."""
+	from database import engine, FriendRequests, Persons
+	with Session(engine) as session:
+		return session.query(FriendRequests, Persons).join(
+			Persons, FriendRequests.requester_id == Persons.id,
+		).filter(
+			FriendRequests.id == request_id,
+			FriendRequests.addressee_id == addressee_id,
+			FriendRequests.status == "pending",
+		).first()

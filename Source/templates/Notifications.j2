@@ -1,0 +1,34 @@
+{% extends "Base.j2" %}
+
+{% block title %}Notifications — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>Notifications</h1>
+		<p class="text-muted">Friend requests and activity.</p>
+
+		<h2>Friend requests</h2>
+		{% if pending_requests %}
+			<ul class="notifications-list">
+				{% for fr, requester in pending_requests %}
+					<li class="notification-item">
+						<div class="notification-content">
+							<p><strong>{{ requester.name | default(requester.email) }}</strong> ({{ requester.email }}) wants to be your friend.</p>
+							{% if fr.message %}<p class="notification-message text-muted">{{ fr.message }}</p>{% endif %}
+						</div>
+						<div class="notification-actions">
+							<form method="POST" action="{{ url_for('accept_friend_request_route', request_id=fr.id) }}" style="display: inline;">
+								<button type="submit" class="btn btn-primary btn-sm">Accept</button>
+							</form>
+							<form method="POST" action="{{ url_for('decline_friend_request_route', request_id=fr.id) }}" style="display: inline;">
+								<button type="submit" class="btn btn-outline btn-sm">Decline</button>
+							</form>
+						</div>
+					</li>
+				{% endfor %}
+			</ul>
+		{% else %}
+			<p class="text-muted">No pending friend requests.</p>
+		{% endif %}
+	</div>
+{% endblock %}
