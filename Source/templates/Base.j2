@@ -34,9 +34,14 @@
 					<a href="/">Home</a>
 					<a href="/Pantry/{{ current_user.id }}">My pantry</a>
 					<a href="/ShoppingList/{{ current_user.id }}">Shopping list</a>
-					<a href="/Recipes">Recipes</a>
+					<div class="nav-dropdown">
+						<button type="button" class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="recipes-menu" id="recipes-trigger">Recipes ▾</button>
+						<ul class="nav-dropdown-menu" id="recipes-menu" role="menu" aria-labelledby="recipes-trigger">
+							<li role="none"><a href="{{ url_for('recipes_index') }}" role="menuitem">Browse Recipes</a></li>
+							<li role="none"><a href="{{ url_for('find_recipe') }}" role="menuitem">Find a Recipe</a></li>
+						</ul>
+					</div>
 					<a href="/AddListItem">Add items</a>
-					<a href="/Friends">Friends</a>
 				{% endif %}
 			</nav>
 			<div class="header-actions">
@@ -91,6 +96,24 @@
 
 	{% block scripts %}
 	<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+	<script>
+	(function() {
+		var trigger = document.getElementById('recipes-trigger');
+		var menu = document.getElementById('recipes-menu');
+		var dropdown = trigger && trigger.closest('.nav-dropdown');
+		if (trigger && dropdown) {
+			trigger.addEventListener('click', function(e) {
+				e.stopPropagation();
+				dropdown.classList.toggle('open');
+				trigger.setAttribute('aria-expanded', dropdown.classList.contains('open'));
+			});
+			document.addEventListener('click', function() {
+				dropdown.classList.remove('open');
+				trigger.setAttribute('aria-expanded', 'false');
+			});
+		}
+	})();
+	</script>
 	{% endblock %}
 </body>
 </html>

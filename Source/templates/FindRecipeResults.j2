@@ -1,0 +1,113 @@
+{% extends "Base.j2" %}
+
+{% block title %}Find a Recipe — {{ recipe.title }} — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card find-recipe-results">
+		<p style="margin: 0 0 1rem 0;"><a href="{{ url_for('find_recipe') }}">← Back to Find a Recipe</a></p>
+
+		<div class="find-recipe-nav">
+			<a href="{{ url_for('find_recipe_results', ids=ids_param, i=prev_idx) }}" class="btn btn-secondary find-recipe-arrow" aria-label="Previous recipe">‹ Prev</a>
+			<span class="find-recipe-counter">Recipe {{ idx + 1 }} of {{ recipe_ids|length }}</span>
+			<a href="{{ url_for('find_recipe_results', ids=ids_param, i=next_idx) }}" class="btn btn-secondary find-recipe-arrow" aria-label="Next recipe">Next ›</a>
+		</div>
+
+		<div class="find-recipe-match-badge">
+			<span class="match-count">{{ match_count }}</span> ingredient{{ 's' if match_count != 1 else '' }} from your pantry
+		</div>
+
+		<div id="find-recipe-images" class="{% if not recipe_images_data %}recipe-images-empty{% endif %}">
+			{% if recipe_images_data %}
+				<div class="recipe-image-carousel">
+					<img src="{{ recipe_images_data[0].url }}" alt="{{ recipe.title }}" class="recipe-carousel-img">
+				</div>
+			{% endif %}
+		</div>
+
+		<h1>{{ recipe.title }}</h1>
+
+		<div class="recipe-profile-view">
+			<p class="recipe-source">
+				<strong>Source:</strong>
+				{% if recipe.source_url %}
+					<a href="{{ recipe.source_url }}" target="_blank" rel="noopener noreferrer">{{ recipe.source_url }}</a>
+				{% else %}
+					<span class="text-muted">(none)</span>
+				{% endif %}
+			</p>
+			<div class="recipe-section">
+				<h3>Ingredients</h3>
+				<ul class="recipe-checklist">
+					{% for line, in_pantry in ingredients_with_pantry %}
+					<li class="recipe-check-item {% if in_pantry %}ingredient-in-pantry{% endif %}">
+						<span class="recipe-check-text">{{ line }}</span>
+						{% if in_pantry %}<span class="pantry-badge" title="In your pantry">✓</span>{% endif %}
+					</li>
+					{% else %}
+					<li class="recipe-check-empty"><span class="text-muted">(none)</span></li>
+					{% endfor %}
+				</ul>
+			</div>
+			<div class="recipe-section">
+				<h3>Steps</h3>
+				<ul class="recipe-checklist">
+					{% for line in steps_list %}
+					<li class="recipe-check-item">
+						<span class="recipe-check-text">{{ line }}</span>
+					</li>
+					{% else %}
+					<li class="recipe-check-empty"><span class="text-muted">(none)</span></li>
+					{% endfor %}
+				</ul>
+			</div>
+			<div class="recipe-section">
+				<h3>Notes</h3>
+				<pre class="recipe-block">{{ recipe.special_notes or '(none)' }}</pre>
+			</div>
+		</div>
+
+		<div class="find-recipe-add-section">
+			<h3>Add ingredients to shopping list</h3>
+			<form method="POST" action="{{ url_for('find_recipe_add_to_list') }}" class="add-to-list-form">
+				<input type="hidden" name="recipe_id" value="{{ recipe.id }}">
+				<div class="form-group">
+					<label for="destination">Add to</label>
+					<select id="destination" name="destination" required>
+						{% for value, label in dest_options %}
+						<option value="{{ value }}" {% if value == 'Grocery list' %}selected{% endif %}>{{ label }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="form-group" id="new-list-group" style="display: none;">
+					<label for="new_list_name">New list name</label>
+					<input type="text" id="new_list_name" name="new_list_name" placeholder="e.g. Birthday Party Shopping">
+				</div>
+				<div class="form-group">
+					<label class="checkbox-label">
+						<input type="checkbox" name="include_owned" id="include_owned" value="on">
+						Include ingredients I already have
+					</label>
+					<p class="text-muted form-hint">Leave unchecked to add only missing ingredients to your list.</p>
+				</div>
+				<button type="submit" class="btn btn-primary">Add ingredients to shopping list</button>
+			</form>
+		</div>
+
+		<div class="find-recipe-nav find-recipe-nav-bottom">
+			<a href="{{ url_for('find_recipe_results', ids=ids_param, i=prev_idx) }}" class="btn btn-secondary find-recipe-arrow" aria-label="Previous recipe">‹ Prev recipe</a>
+			<a href="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="btn btn-secondary">View full recipe</a>
+			<a href="{{ url_for('find_recipe_results', ids=ids_param, i=next_idx) }}" class="btn btn-secondary find-recipe-arrow" aria-label="Next recipe">Next recipe ›</a>
+		</div>
+	</div>
+	<script>
+	(function() {
+		var dest = document.getElementById('destination');
+		var newGroup = document.getElementById('new-list-group');
+		if (dest && newGroup) {
+			function toggle() { newGroup.style.display = dest.value === '__new__' ? 'block' : 'none'; }
+			dest.addEventListener('change', toggle);
+			toggle();
+		}
+	})();
+	</script>
+{% endblock %}

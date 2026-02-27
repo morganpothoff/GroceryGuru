@@ -1,0 +1,29 @@
+{% extends "Base.j2" %}
+
+{% block title %}Find a Recipe — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<p style="margin: 0 0 1rem 0;"><a href="{{ url_for('recipes_index') }}">← Back to Recipes</a></p>
+		<h1>Find a Recipe</h1>
+		<p class="text-muted">We'll find recipes from your saved collection that use the most ingredients you already have in your pantry.</p>
+
+		{% if error %}<div class="alert-error">{{ error }}</div>{% endif %}
+
+		<form method="POST" action="{{ url_for('find_recipe') }}">
+			<div class="form-group">
+				<label for="recipe_type">What type of recipe are you looking for?</label>
+				<select id="recipe_type" name="recipe_type">
+					<option value="">Any</option>
+					<option value="Desserts" {% if request.form.recipe_type == 'Desserts' %}selected{% endif %}>Desserts</option>
+					<option value="Dinners" {% if request.form.recipe_type == 'Dinners' %}selected{% endif %}>Dinners</option>
+					<option value="Breakfasts" {% if request.form.recipe_type == 'Breakfasts' %}selected{% endif %}>Breakfasts</option>
+					<option value="Others" {% if request.form.recipe_type == 'Others' %}selected{% endif %}>Others</option>
+				</select>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="btn btn-primary">Find recipe</button>
+			</div>
+		</form>
+	</div>
+{% endblock %}

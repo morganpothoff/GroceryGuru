@@ -125,6 +125,57 @@ body {
 	color: white;
 }
 
+/* Nav dropdown */
+.nav-dropdown {
+	position: relative;
+}
+.nav-dropdown-trigger {
+	padding: 0.4rem 0.75rem;
+	border-radius: 6px;
+	background: var(--accent-bg);
+	font-size: 0.9rem;
+	font-weight: 500;
+	font-family: inherit;
+	color: var(--text-primary);
+	border: none;
+	cursor: pointer;
+}
+.nav-dropdown-trigger:hover {
+	background: var(--accent);
+	color: white;
+}
+.nav-dropdown-menu {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	margin: 0.25rem 0 0 0;
+	padding: 0.25rem 0;
+	min-width: 10rem;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	box-shadow: 0 4px 16px var(--shadow-lg);
+	list-style: none;
+	z-index: 100;
+	display: none;
+}
+.nav-dropdown.open .nav-dropdown-menu {
+	display: block;
+}
+.nav-dropdown-menu a {
+	display: block;
+	padding: 0.5rem 1rem;
+	text-decoration: none;
+	color: var(--text-primary);
+	font-size: 0.9rem;
+	border-radius: 4px;
+	margin: 0 0.25rem;
+}
+.nav-dropdown-menu a:hover {
+	background: var(--accent-bg);
+	color: var(--accent);
+}
+
 .header-actions {
 	display: flex;
 	align-items: center;
@@ -1020,6 +1071,86 @@ a:hover {
 .recipe-comment-empty {
 	padding: 0.75rem 0;
 	font-size: 0.95rem;
+}
+
+/* --- Find Recipe results --- */
+.find-recipe-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 1.5rem;
+	flex-wrap: wrap;
+}
+
+.find-recipe-nav-bottom {
+	margin-top: 2rem;
+	margin-bottom: 0;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--border);
+}
+
+.find-recipe-arrow {
+	text-decoration: none;
+}
+
+.find-recipe-counter {
+	font-size: 0.95rem;
+	color: var(--text-muted);
+}
+
+.find-recipe-match-badge {
+	display: inline-block;
+	padding: 0.5rem 1rem;
+	margin-bottom: 1rem;
+	background: var(--accent-bg);
+	border-radius: 8px;
+	font-size: 0.95rem;
+}
+
+.find-recipe-match-badge .match-count {
+	font-weight: 700;
+	color: var(--accent);
+}
+
+.find-recipe-add-section {
+	margin-top: 2rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--border);
+}
+
+.find-recipe-add-section h3 {
+	font-size: 1.2rem;
+	margin: 0 0 1rem 0;
+}
+
+.ingredient-in-pantry {
+	background: var(--accent-bg);
+	border-radius: 4px;
+}
+
+.pantry-badge {
+	display: inline-block;
+	margin-left: 0.5rem;
+	color: var(--success);
+	font-weight: 600;
+}
+
+.checkbox-label {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	cursor: pointer;
+	font-weight: 500;
+}
+
+.checkbox-label input {
+	width: auto;
+}
+
+.form-hint {
+	font-size: 0.85rem;
+	margin: 0.35rem 0 0 0;
 }
 
 /* --- Friends & Notifications --- */
