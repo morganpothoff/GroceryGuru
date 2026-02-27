@@ -11,6 +11,8 @@ from database import (
 	get_or_create_ingredient,
 	update_list_ingredient,
 	soft_delete_list_ingredient,
+	update_list,
+	delete_list,
 )
 from database import Select
 
@@ -292,3 +294,201 @@ class TestListItemAccess:
 		names = [ing.name for _, ing in items]
 		assert "Visible" in names
 		assert "Deleted" not in names
+
+
+# ————————————————————————————————— My Lists (Lists overview) —————————————————— #
+
+class TestListsOverview:
+	"""Tests for /Lists (My Lists) page and related routes."""
+
+	def test_lists_index_requires_login(self, client):
+		"""GET /Lists redirects to login when not authenticated."""
+		resp = client.get("/Lists", follow_redirects=False)
+		assert resp.status_code in (302, 401)
+		if resp.status_code == 302:
+			assert "Login" in resp.headers.get("Location", "")
+
+	def test_lists_index_show_lists_when_logged_in(self, logged_in_client):
+		"""GET /Lists shows lists overview when authenticated."""
+		client, user_id = logged_in_client
+		get_or_create_list("Grocery list", user_id)
+		resp = client.get("/Lists", follow_redirects=True)
+		assert resp.status_code == 200
+		assert b"My Lists" in resp.data
+		assert b"Grocery list" in resp.data
+
+	def test_lists_index_creates_grocery_list_if_empty(self, logged_in_client):
+		"""GET /Lists creates Grocery list when user has no lists."""
+		client, user_id = logged_in_client
+		resp = client.get("/Lists", follow_redirects=True)
+		assert resp.status_code == 200
+		lists = Select.get_Lists_by_Persons_id(user_id)
+		assert len(lists) >= 1
+		grocery = next((l for l in lists if l.name == "Grocery list"), None)
+		assert grocery is not None
+
+
+class TestUpdateLists:
+	"""Tests for POST /Lists/Update (bulk list name updates)."""
+
+	def test_update_lists_route_updates_names(self, logged_in_client):
+		"""POST /Lists/Update updates multiple list names."""
+		client, user_id = logged_in_client
+		list_id1 = get_or_create_list("Old Name 1", user_id)
+		list_id2 = get_or_create_list("Old Name 2", user_id)
+
+		resp = client.post(
+			"/Lists/Update",
+			data={
+				f"list_{list_id1}": "New Name 1",
+				f"list_{list_id2}": "New Name 2",
+			},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=True,
+		)
+		assert resp.status_code == 200
+
+		lst1 = Select.get_List_by_id(list_id1, user_id)
+		lst2 = Select.get_List_by_id(list_id2, user_id)
+		assert lst1 is not None and lst1.name == "New Name 1"
+		assert lst2 is not None and lst2.name == "New Name 2"
+
+	def test_update_lists_route_requires_login(self, client):
+		"""POST /Lists/Update redirects when not authenticated."""
+		resp = client.post(
+			"/Lists/Update",
+			data={"list_1": "Renamed"},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=False,
+		)
+		assert resp.status_code in (302, 401)
+
+
+class TestDeleteList:
+	"""Tests for POST /Lists/<id>/Delete."""
+
+	def test_delete_list_route_deletes_list_and_items(self, logged_in_client):
+		"""POST /Lists/<id>/Delete removes list and all its items."""
+		client, user_id = logged_in_client
+		list_id = get_or_create_list("To Delete", user_id)
+		ingredient_id = get_or_create_ingredient("ItemInList", user_id)
+		create_list_ingredient(1, datetime.utcnow(), ingredient_id, list_id)
+
+		resp = client.post(
+			f"/Lists/{list_id}/Delete",
+			data={},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=True,
+		)
+		assert resp.status_code == 200
+
+		assert Select.get_List_by_id(list_id, user_id) is None
+		items = Select.get_ListIngredients_by_Lists_id(list_id, user_id)
+		assert len(items) == 0
+
+	def test_delete_list_route_requires_login(self, client):
+		"""POST /Lists/<id>/Delete redirects when not authenticated."""
+		resp = client.post(
+			"/Lists/1/Delete",
+			data={},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=False,
+		)
+		assert resp.status_code in (302, 401)
+
+
+class TestCreateList:
+	"""Tests for POST /CreateList with redirect_to."""
+
+	def test_create_list_redirects_to_lists_index(self, logged_in_client):
+		"""POST /CreateList with redirect_to goes to Lists page."""
+		client, user_id = logged_in_client
+		resp = client.post(
+			"/CreateList",
+			data={
+				"list_name": "New List Test",
+				"redirect_to": "/Lists",
+			},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=True,
+		)
+		assert resp.status_code == 200
+		assert b"My Lists" in resp.data
+		assert b"New List Test" in resp.data
+
+
+# ————————————————————————————————— Database: update_list, delete_list —————————— #
+
+class TestUpdateListDb:
+	"""Tests for update_list database function."""
+
+	def test_update_list_renames_success(self, test_user_id, test_list):
+		"""update_list renames a list."""
+		list_id, _ = test_list
+		ok = update_list(list_id, "Renamed Grocery", test_user_id)
+		assert ok is True
+		lst = Select.get_List_by_id(list_id, test_user_id)
+		assert lst is not None and lst.name == "Renamed Grocery"
+
+	def test_update_list_returns_false_for_other_user(self, test_user_id, test_list):
+		"""update_list returns False when list belongs to another user."""
+		list_id, _ = test_list
+		other_id = create_user("other_update@test.com", "Other", "pass")
+		ok = update_list(list_id, "Hacked", other_id)
+		assert ok is False
+		lst = Select.get_List_by_id(list_id, test_user_id)
+		assert lst is not None and lst.name == "Grocery list"
+
+	def test_update_list_returns_false_for_empty_name(self, test_user_id, test_list):
+		"""update_list returns False when new_name is empty."""
+		list_id, _ = test_list
+		ok = update_list(list_id, "  ", test_user_id)
+		assert ok is False
+
+
+class TestDeleteListDb:
+	"""Tests for delete_list database function."""
+
+	def test_delete_list_removes_list_and_items(self, test_user_id, test_list):
+		"""delete_list removes list and all ListIngredients."""
+		list_id, _ = test_list
+		ingredient_id = get_or_create_ingredient("InList", test_user_id)
+		create_list_ingredient(2, datetime.utcnow(), ingredient_id, list_id)
+
+		ok = delete_list(list_id, test_user_id)
+		assert ok is True
+		assert Select.get_List_by_id(list_id, test_user_id) is None
+		items = Select.get_ListIngredients_by_Lists_id(list_id, test_user_id)
+		assert len(items) == 0
+
+	def test_delete_list_returns_false_for_other_user(self, test_user_id, test_list):
+		"""delete_list returns False when list belongs to another user."""
+		list_id, _ = test_list
+		other_id = create_user("other_del@test.com", "Other", "pass")
+		ok = delete_list(list_id, other_id)
+		assert ok is False
+		assert Select.get_List_by_id(list_id, test_user_id) is not None
+
+
+class TestGetListById:
+	"""Tests for get_List_by_id Select function."""
+
+	def test_get_List_by_id_returns_list_for_owner(self, test_user_id, test_list):
+		"""get_List_by_id returns list when user owns it."""
+		list_id, list_name = test_list
+		lst = Select.get_List_by_id(list_id, test_user_id)
+		assert lst is not None
+		assert lst.id == list_id
+		assert lst.name == list_name
+
+	def test_get_List_by_id_returns_none_for_other_user(self, test_user_id, test_list):
+		"""get_List_by_id returns None for another user's list."""
+		list_id, _ = test_list
+		other_id = create_user("other_get@test.com", "Other", "pass")
+		lst = Select.get_List_by_id(list_id, other_id)
+		assert lst is None
+
+	def test_get_List_by_id_returns_none_for_nonexistent(self, test_user_id):
+		"""get_List_by_id returns None for non-existent list id."""
+		lst = Select.get_List_by_id(99999, test_user_id)
+		assert lst is None
