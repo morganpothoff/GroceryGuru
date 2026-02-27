@@ -23,6 +23,7 @@ from database import (
 	find_matching_inventory_item, add_inventory_count,
 	update_inventory_ingredient, soft_delete_inventory_ingredient,
 	update_list_ingredient, soft_delete_list_ingredient,
+	update_list, delete_list,
 	create_recipe, update_recipe, soft_delete_recipe,
 	upsert_recipe_rating, create_recipe_comment, create_recipe_image, delete_recipe_image,
 	create_friend_request, accept_friend_request, decline_friend_request, unfriend,
@@ -51,6 +52,18 @@ def inject_notifications():
 		pending = database.Select.get_pending_friend_requests_for_user(current_user.id)
 		return {"notification_count": len(pending), "pending_friend_requests": pending}
 	return {"notification_count": 0, "pending_friend_requests": []}
+
+
+@app.context_processor
+def inject_user_lists():
+	"""Inject user lists for nav dropdown (Grocery list first, then custom lists alphabetically)."""
+	if current_user.is_authenticated:
+		lists = database.Select.get_Lists_by_Persons_id(current_user.id)
+		grocery = next((l for l in lists if l.name == "Grocery list"), None)
+		custom = sorted([l for l in lists if l.name != "Grocery list"], key=lambda l: l.name)
+		ordered = ([grocery] if grocery else []) + custom
+		return {"user_lists": ordered}
+	return {"user_lists": []}
 
 
 @app.template_filter("date_str")
@@ -180,10 +193,54 @@ def create_list_route():
 	"""Create a new empty list and redirect to its view."""
 	list_name = request.form.get("list_name", "").strip()
 	if not list_name:
-		return redirect(url_for("display_ingredients", user_id=current_user.id))
+		redirect_to = request.form.get("redirect_to") or url_for("lists_index")
+		return redirect(redirect_to)
 	user_id = current_user.id
 	get_or_create_list(list_name, user_id)
-	return redirect(url_for("display_ingredients", user_id=user_id, list_name=list_name))
+	redirect_to = request.form.get("redirect_to") or url_for("display_ingredients", user_id=user_id, list_name=list_name)
+	return redirect(redirect_to)
+
+
+@app.route("/Lists/Update", methods=["POST"])
+@login_required
+def update_lists_route():
+	"""Update multiple list names. Form keys: list_<id>=<new_name>."""
+	updated = 0
+	for key, value in request.form.items():
+		if key.startswith("list_") and key[5:].isdigit():
+			list_id = int(key[5:])
+			new_name = (value or "").strip()
+			if new_name and update_list(list_id, new_name, current_user.id):
+				updated += 1
+	if updated:
+		flash(f"{updated} list{'s' if updated != 1 else ''} updated.", "success")
+	return redirect(url_for("lists_index"))
+
+
+@app.route("/Lists/<int:list_id>/Delete", methods=["POST"])
+@login_required
+def delete_list_route(list_id: int):
+	"""Delete a list and all its items."""
+	if delete_list(list_id, current_user.id):
+		flash("List and all its items have been deleted.", "success")
+	else:
+		flash("List not found or you don't have permission to delete it.", "error")
+	return redirect(url_for("lists_index"))
+
+
+@app.route("/Lists")
+@login_required
+def lists_index():
+	"""All lists overview: show links to each list."""
+	all_lists = database.Select.get_Lists_by_Persons_id(current_user.id)
+	if not all_lists:
+		get_or_create_list("Grocery list", current_user.id)
+		all_lists = database.Select.get_Lists_by_Persons_id(current_user.id)
+	grocery = next((l for l in all_lists if l.name == "Grocery list"), None)
+	custom = sorted([l for l in all_lists if l.name != "Grocery list"], key=lambda l: l.name)
+	ordered_lists = ([grocery] if grocery else []) + custom
+	list_counts = {lst.id: len(database.Select.get_ListIngredients_by_Lists_id(lst.id, current_user.id)) for lst in ordered_lists}
+	return render_template("ListsOverview.j2", user_id=current_user.id, all_lists=ordered_lists, list_counts=list_counts, current_page="lists")
 
 
 @app.route("/ShoppingList/<int:user_id>")

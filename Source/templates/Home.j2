@@ -11,7 +11,7 @@
 		<div class="action-buttons">
 			<a href="/AddListItem" class="btn btn-primary">Add item</a>
 			<a href="/Pantry/{{ current_user.id }}" class="btn btn-primary">My pantry</a>
-			<a href="/ShoppingList/{{ current_user.id }}" class="btn btn-primary">Shopping list</a>
+			<a href="{{ url_for('lists_index') }}" class="btn btn-primary">My Lists</a>
 		</div>
 	</div>
 {% endblock %}

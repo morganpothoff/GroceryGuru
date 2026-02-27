@@ -1,0 +1,103 @@
+{% extends "Base.j2" %}
+
+{% block title %}My Lists — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<h1>My Lists</h1>
+		{% if all_lists %}
+			<form method="POST" action="{{ url_for('update_lists_route') }}" id="lists-edit-form">
+				<ul class="item-list lists-overview-list" style="list-style: none; padding: 0; margin: 0;">
+					{% for lst in all_lists %}
+						<li class="item-list-row lists-overview-row" data-list-id="{{ lst.id }}" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+							<span class="lists-view-mode" style="display: flex; flex: 1;">
+								<a href="{{ url_for('display_ingredients', user_id=user_id, list_name=lst.name) }}" class="item-list-link" style="flex: 1;">
+									<span class="item-name">{{ lst.name }}</span>
+									{% if list_counts.get(lst.id, 0) > 0 %}
+										<span class="text-muted" style="font-size: 0.9rem;">({{ list_counts[lst.id] }} item{% if list_counts[lst.id] != 1 %}s{% endif %})</span>
+									{% endif %}
+								</a>
+							</span>
+							<span class="lists-edit-mode" style="display: none; flex: 1; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+								<input type="text" name="list_{{ lst.id }}" value="{{ lst.name }}" required class="form-inline-input" style="flex: 1; min-width: 8rem;">
+								<button type="submit" form="delete-form-{{ lst.id }}" class="btn btn-danger btn-sm" aria-label="Delete {{ lst.name }}" onclick="return confirm('Delete {{ lst.name }}? All items in this list will be permanently deleted. This cannot be undone.');">Delete</button>
+							</span>
+						</li>
+					{% endfor %}
+				</ul>
+				<div class="lists-edit-mode" id="lists-save-row" style="display: none; margin-top: 1rem;">
+					<button type="submit" class="btn btn-primary">Save</button>
+				</div>
+			</form>
+			{% for lst in all_lists %}
+			<form id="delete-form-{{ lst.id }}" method="POST" action="{{ url_for('delete_list_route', list_id=lst.id) }}" style="display: none;"></form>
+			{% endfor %}
+			<div id="new-list-form" class="form-inline" style="display: none; margin-top: 1rem;">
+				<form method="POST" action="{{ url_for('create_list_route') }}" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+					<input type="hidden" name="redirect_to" value="{{ url_for('lists_index') }}">
+					<input type="text" name="list_name" placeholder="e.g. Birthday Party Shopping" required class="form-inline-input" style="flex: 1; min-width: 12rem;">
+					<button type="submit" class="btn btn-primary">Create list</button>
+					<button type="button" id="cancel-new-list" class="btn btn-secondary">Cancel</button>
+				</form>
+			</div>
+			<div class="nav-links" style="margin-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+				<button type="button" id="add-list-btn" class="btn btn-primary">Add List</button>
+				<button type="button" id="edit-lists-btn" class="btn btn-secondary">Edit Lists</button>
+			</div>
+		{% else %}
+			<p class="text-muted">No lists yet.</p>
+			<div id="new-list-form-empty" class="form-inline" style="display: none; margin-top: 1rem;">
+				<form method="POST" action="{{ url_for('create_list_route') }}" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+					<input type="hidden" name="redirect_to" value="{{ url_for('lists_index') }}">
+					<input type="text" name="list_name" placeholder="e.g. Grocery list" required class="form-inline-input" style="flex: 1; min-width: 12rem;">
+					<button type="submit" class="btn btn-primary">Create list</button>
+					<button type="button" id="cancel-new-list-empty" class="btn btn-secondary">Cancel</button>
+				</form>
+			</div>
+			<div class="nav-links" style="margin-top: 1rem;">
+				<button type="button" id="add-list-btn-empty" class="btn btn-primary">Add List</button>
+			</div>
+		{% endif %}
+	</div>
+
+	<script>
+	(function() {
+		var addListBtn = document.getElementById('add-list-btn') || document.getElementById('add-list-btn-empty');
+		var editListsBtn = document.getElementById('edit-lists-btn');
+		var newListForm = document.getElementById('new-list-form') || document.getElementById('new-list-form-empty');
+		var cancelBtn = document.getElementById('cancel-new-list') || document.getElementById('cancel-new-list-empty');
+
+		if (addListBtn) {
+			addListBtn.addEventListener('click', function() {
+				if (newListForm) {
+					newListForm.style.display = 'block';
+					var input = newListForm.querySelector('input[name="list_name"]');
+					if (input) input.focus();
+				}
+			});
+		}
+		if (cancelBtn && newListForm) {
+			cancelBtn.addEventListener('click', function() {
+				newListForm.style.display = 'none';
+			});
+		}
+
+		if (editListsBtn) {
+			editListsBtn.addEventListener('click', function() {
+				var viewSpans = document.querySelectorAll('.lists-view-mode');
+				var editSpans = document.querySelectorAll('.lists-edit-mode');
+				var isEditing = editSpans[0] && editSpans[0].style.display !== 'none';
+				if (isEditing) {
+					viewSpans.forEach(function(s) { s.style.display = 'flex'; });
+					editSpans.forEach(function(s) { s.style.display = 'none'; });
+					editListsBtn.textContent = 'Edit Lists';
+				} else {
+					viewSpans.forEach(function(s) { s.style.display = 'none'; });
+					editSpans.forEach(function(s) { s.style.display = 'flex'; });
+					editListsBtn.textContent = 'Done Editing';
+				}
+			});
+		}
+	})();
+	</script>
+{% endblock %}

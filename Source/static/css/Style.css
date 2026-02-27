@@ -1324,3 +1324,27 @@ a:hover {
 .notification-actions form {
 	display: inline;
 }
+
+/* --- Flash messages --- */
+.flash-messages {
+	margin-bottom: 0.5rem;
+}
+
+.flash {
+	padding: 0.75rem 1rem;
+	border-radius: 8px;
+	margin-bottom: 0.5rem;
+	font-size: 0.95rem;
+}
+
+.flash-success {
+	background: var(--accent-bg);
+	color: var(--success);
+	border: 1px solid var(--accent);
+}
+
+.flash-error {
+	background: rgba(225, 82, 82, 0.15);
+	color: var(--error);
+	border: 1px solid var(--error);
+}

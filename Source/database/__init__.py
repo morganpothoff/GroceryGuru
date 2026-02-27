@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from werkzeug.security import generate_password_hash
-from sqlalchemy import select, insert, update
+from sqlalchemy import select, insert, update, delete
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
@@ -369,6 +369,35 @@ def soft_delete_list_ingredient(list_ingredient_id: int):
 		stmt = update(tbl).where(tbl.c.id == list_ingredient_id).values(is_deleted=True)
 		session.execute(stmt)
 		session.commit()
+
+
+def update_list(list_id: int, new_name: str, Persons_id: int) -> bool:
+	"""Update a list's name. Returns True if list exists and belongs to user."""
+	lst = Select.get_List_by_id(list_id, Persons_id)
+	if not lst:
+		return False
+	new_name = (new_name or "").strip()
+	if not new_name:
+		return False
+	tbl = Lists.__table__
+	with Session(engine) as session:
+		session.execute(update(tbl).where(tbl.c.id == list_id).values(name=new_name))
+		session.commit()
+	return True
+
+
+def delete_list(list_id: int, Persons_id: int) -> bool:
+	"""Delete a list and all its items. Returns True if list existed and belonged to user."""
+	lst = Select.get_List_by_id(list_id, Persons_id)
+	if not lst:
+		return False
+	li_tbl = ListIngredients.__table__
+	l_tbl = Lists.__table__
+	with Session(engine) as session:
+		session.execute(delete(li_tbl).where(li_tbl.c["Lists.id"] == list_id))
+		session.execute(delete(l_tbl).where(l_tbl.c.id == list_id))
+		session.commit()
+	return True
 
 
 # ————————————————————————————————— Recipes ———————————————————————————————— #
