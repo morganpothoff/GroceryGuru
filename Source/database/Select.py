@@ -183,15 +183,25 @@ def get_Person_by_email(email: str):
 
 
 def get_pending_friend_requests_for_user(addressee_id: int):
-	"""Return pending FriendRequests where addressee_id is the user. Each row has requester info."""
-	from database import engine, FriendRequests, Persons
+	"""Return pending FriendRequests where addressee_id is the user, excluding dismissed. Each row has requester info."""
+	from database import engine, FriendRequests, Persons, DismissedNotifications
 	with Session(engine) as session:
-		rows = session.query(FriendRequests, Persons).join(
+		dismissed_ids = {
+			row[0]
+			for row in session.query(DismissedNotifications.notification_id).filter(
+				DismissedNotifications.user_id == addressee_id,
+				DismissedNotifications.notification_type == "friend_request",
+			).all()
+		}
+		query = session.query(FriendRequests, Persons).join(
 			Persons, FriendRequests.requester_id == Persons.id,
 		).filter(
 			FriendRequests.addressee_id == addressee_id,
 			FriendRequests.status == "pending",
-		).order_by(FriendRequests.created_at.desc()).all()
+		)
+		if dismissed_ids:
+			query = query.filter(FriendRequests.id.notin_(dismissed_ids))
+		rows = query.order_by(FriendRequests.created_at.desc()).all()
 		return rows
 
 
@@ -237,17 +247,27 @@ def get_friend_request_by_id(request_id: int, addressee_id: int):
 # ————————————————————————————————— Recipe shares ———————————————————————————————— #
 
 def get_recipe_shares_for_recipient(recipient_id: int):
-	"""Return (RecipeShares, Recipes, Persons) for shares received by user, newest first."""
-	from database import engine, RecipeShares, Recipes, Persons
+	"""Return (RecipeShares, Recipes, Persons) for shares received by user, excluding dismissed, newest first."""
+	from database import engine, RecipeShares, Recipes, Persons, DismissedNotifications
 	with Session(engine) as session:
-		return session.query(RecipeShares, Recipes, Persons).join(
+		dismissed_ids = {
+			row[0]
+			for row in session.query(DismissedNotifications.notification_id).filter(
+				DismissedNotifications.user_id == recipient_id,
+				DismissedNotifications.notification_type == "recipe_share",
+			).all()
+		}
+		query = session.query(RecipeShares, Recipes, Persons).join(
 			Recipes, getattr(RecipeShares, "Recipes.id") == Recipes.id,
 		).join(
 			Persons, RecipeShares.sharer_id == Persons.id,
 		).filter(
 			RecipeShares.recipient_id == recipient_id,
 			Recipes.is_deleted == False,
-		).order_by(RecipeShares.created_at.desc()).all()
+		)
+		if dismissed_ids:
+			query = query.filter(RecipeShares.id.notin_(dismissed_ids))
+		return query.order_by(RecipeShares.created_at.desc()).all()
 
 
 def get_recipe_share_by_id(share_id: int, recipient_id: int):

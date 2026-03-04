@@ -191,6 +191,27 @@ def _migrate_recipe_shares_if_needed():
 			""")
 
 
+def _migrate_dismissed_notifications_if_needed():
+	"""Create DismissedNotifications table for tracking dismissed notifications."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='DismissedNotifications'")
+		if cur.fetchone() is None:
+			raw.execute("""
+				CREATE TABLE "DismissedNotifications" (
+					"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+					"user_id" INTEGER NOT NULL,
+					"notification_type" TEXT NOT NULL,
+					"notification_id" INTEGER NOT NULL,
+					"dismissed_at" TEXT NOT NULL DEFAULT (datetime('now')),
+					UNIQUE ("user_id", "notification_type", "notification_id"),
+					FOREIGN KEY ("user_id") REFERENCES "Persons"("id")
+				)
+			""")
+
+
 _init_schema_if_needed()
 _migrate_add_notes_if_needed()
 _migrate_recipes_table_if_needed()
@@ -200,6 +221,7 @@ _migrate_recipe_comments_if_needed()
 _migrate_recipe_images_if_needed()
 _migrate_friend_requests_if_needed()
 _migrate_recipe_shares_if_needed()
+_migrate_dismissed_notifications_if_needed()
 
 # reflect the tables
 Base = automap_base()
@@ -219,6 +241,7 @@ RecipeComments = Base.classes.RecipeComments
 RecipeImages = Base.classes.RecipeImages
 FriendRequests = Base.classes.FriendRequests
 RecipeShares = Base.classes.RecipeShares
+DismissedNotifications = Base.classes.DismissedNotifications
 
 
 def get_user_count():
@@ -706,6 +729,29 @@ def share_recipe_with_friends(recipe_id: int, sharer_id: int, recipient_ids: lis
 		except ValueError as e:
 			errors.append(str(e))
 	return success, errors
+
+
+def dismiss_notification(user_id: int, notification_type: str, notification_id: int) -> bool:
+	"""Mark a notification as dismissed. Returns True if recorded (or already dismissed)."""
+	notification_type = (notification_type or "").strip().lower()
+	if notification_type not in ("friend_request", "recipe_share"):
+		return False
+	with Session(engine) as session:
+		existing = session.query(DismissedNotifications).filter(
+			DismissedNotifications.user_id == user_id,
+			DismissedNotifications.notification_type == notification_type,
+			DismissedNotifications.notification_id == notification_id,
+		).first()
+		if existing:
+			return True
+		stmt = insert(DismissedNotifications.__table__).values(**{
+			"user_id": user_id,
+			"notification_type": notification_type,
+			"notification_id": notification_id,
+		})
+		session.execute(stmt)
+		session.commit()
+	return True
 
 
 def add_shared_recipe_to_user(share_id: int, recipient_id: int) -> int | None:

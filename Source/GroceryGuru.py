@@ -29,6 +29,7 @@ from database import (
 	create_friend_request, accept_friend_request, decline_friend_request, unfriend,
 	update_person_profile,
 	share_recipe_with_friends, add_shared_recipe_to_user,
+	dismiss_notification,
 )
 import recipe_extractor
 
@@ -1005,6 +1006,20 @@ def notifications():
 	return render_template("Notifications.j2", pending_requests=pending, recipe_shares=recipe_shares)
 
 
+@app.route("/Notifications/Dismiss", methods=["POST"])
+@login_required
+def dismiss_notification_route():
+	"""Dismiss a notification. Expects notification_type and notification_id in form."""
+	notification_type = request.form.get("notification_type", "").strip().lower()
+	notification_id = request.form.get("notification_id", type=int)
+	if not notification_type or notification_id is None:
+		return redirect(url_for("notifications"))
+	if notification_type not in ("friend_request", "recipe_share"):
+		return redirect(url_for("notifications"))
+	dismiss_notification(current_user.id, notification_type, notification_id)
+	return redirect(url_for("notifications"))
+
+
 @app.route("/Recipe/Shared/<int:share_id>", methods=["GET", "POST"])
 @login_required
 def shared_recipe_detail(share_id: int):
@@ -1014,6 +1029,8 @@ def shared_recipe_detail(share_id: int):
 		return "Shared recipe not found or you don't have access to it.", 404
 	share, recipe, sharer = row
 	recipe_id = recipe.id
+	# Dismiss the notification when user views the shared recipe
+	dismiss_notification(current_user.id, "recipe_share", share_id)
 	if request.method == "POST" and request.form.get("action") == "add":
 		new_id = add_shared_recipe_to_user(share_id, current_user.id)
 		if new_id:

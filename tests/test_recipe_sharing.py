@@ -10,6 +10,7 @@ from database import (
 	create_recipe_share,
 	share_recipe_with_friends,
 	add_shared_recipe_to_user,
+	dismiss_notification,
 )
 from database import Select
 
@@ -251,6 +252,51 @@ class TestRecipeShareSelect:
 		row = Select.get_recipe_share_by_id(99999, recipient_id)
 		assert row is None
 
+	def test_get_recipe_shares_excludes_dismissed(self, recipe_share, recipient_id):
+		"""get_recipe_shares_for_recipient excludes dismissed shares."""
+		shares = Select.get_recipe_shares_for_recipient(recipient_id)
+		assert len(shares) == 1
+		dismiss_notification(recipient_id, "recipe_share", recipe_share)
+		shares_after = Select.get_recipe_shares_for_recipient(recipient_id)
+		assert len(shares_after) == 0
+
+
+# ————————————————————————————————— Database: dismiss_notification ——————————— #
+
+class TestDismissNotification:
+	"""Tests for dismiss_notification database function."""
+
+	def test_dismiss_notification_recipe_share(self, recipe_share, recipient_id):
+		"""dismiss_notification records recipe_share dismissal."""
+		result = dismiss_notification(recipient_id, "recipe_share", recipe_share)
+		assert result is True
+		shares = Select.get_recipe_shares_for_recipient(recipient_id)
+		assert len(shares) == 0
+
+	def test_dismiss_notification_friend_request(self, sharer_id, recipient_id):
+		"""dismiss_notification records friend_request dismissal."""
+		create_friend_request(sharer_id, recipient_id)
+		req = Select.get_pending_friend_requests_for_user(recipient_id)[0][0]
+		result = dismiss_notification(recipient_id, "friend_request", req.id)
+		assert result is True
+		pending = Select.get_pending_friend_requests_for_user(recipient_id)
+		assert len(pending) == 0
+
+	def test_dismiss_notification_invalid_type_returns_false(self, recipe_share, recipient_id):
+		"""dismiss_notification returns False for invalid notification_type."""
+		result = dismiss_notification(recipient_id, "invalid_type", recipe_share)
+		assert result is False
+		shares = Select.get_recipe_shares_for_recipient(recipient_id)
+		assert len(shares) == 1
+
+	def test_dismiss_notification_idempotent(self, recipe_share, recipient_id):
+		"""dismiss_notification is idempotent - calling twice still works."""
+		dismiss_notification(recipient_id, "recipe_share", recipe_share)
+		result = dismiss_notification(recipient_id, "recipe_share", recipe_share)
+		assert result is True
+		shares = Select.get_recipe_shares_for_recipient(recipient_id)
+		assert len(shares) == 0
+
 
 # ————————————————————————————————— Routes: share recipe ——————————————————— #
 
@@ -368,6 +414,31 @@ class TestSharedRecipeDetailRoute:
 		assert b"eggs" in resp.data
 		assert b"Add to my recipes" in resp.data
 		assert b"Exit without adding" in resp.data
+		assert b"Shared by" in resp.data
+		assert b"Sharer" in resp.data
+
+	def test_shared_recipe_viewing_auto_dismisses_notification(self, logged_in_client, recipe_share, recipient_id):
+		"""GET /Recipe/Shared/<id> auto-dismisses the notification so it no longer appears."""
+		email = f"auto_dismiss_{id(object())}@test.com"
+		rec_id = create_user(email, "Auto Dismiss Recipient", "Pass123")
+		client, _ = logged_in_client
+		client.post("/Logout", follow_redirects=True)
+		client.post("/Login", data={"email": email, "pass": "Pass123"}, follow_redirects=True)
+
+		sharer_id = create_user(f"auto_dismiss_sharer_{id(object())}@test.com", "Sharer", "pass")
+		create_friend_request(sharer_id, rec_id)
+		req = Select.get_pending_friend_requests_for_user(rec_id)[0][0]
+		accept_friend_request(req.id, rec_id)
+		rid = create_recipe("Auto Dismiss Recipe", sharer_id)
+		share_id = create_recipe_share(rid, sharer_id, rec_id)
+
+		shares_before = Select.get_recipe_shares_for_recipient(rec_id)
+		assert len(shares_before) == 1
+
+		client.get(f"/Recipe/Shared/{share_id}", follow_redirects=True)
+
+		shares_after = Select.get_recipe_shares_for_recipient(rec_id)
+		assert len(shares_after) == 0
 
 	def test_shared_recipe_post_add(self, logged_in_client, recipe_share, recipient_id, shared_recipe):
 		"""POST /Recipe/Shared/<id> with action=add copies recipe to user."""
@@ -412,10 +483,126 @@ class TestSharedRecipeDetailRoute:
 		assert resp.status_code == 404
 
 
+# ————————————————————————————————— Routes: dismiss notification ———————————— #
+
+class TestDismissNotificationRoute:
+	"""Tests for POST /Notifications/Dismiss."""
+
+	def test_dismiss_route_requires_login(self, client, recipe_share):
+		"""POST /Notifications/Dismiss redirects when not authenticated."""
+		resp = client.post(
+			"/Notifications/Dismiss",
+			data={"notification_type": "recipe_share", "notification_id": recipe_share},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=False,
+		)
+		assert resp.status_code in (302, 401)
+
+	def test_dismiss_route_recipe_share(self, logged_in_client, recipe_share, recipient_id):
+		"""POST /Notifications/Dismiss with recipe_share dismisses and redirects."""
+		email = f"dismiss_route_{id(object())}@test.com"
+		rec_id = create_user(email, "Dismiss Recipient", "Pass123")
+		client, _ = logged_in_client
+		client.post("/Logout", follow_redirects=True)
+		client.post("/Login", data={"email": email, "pass": "Pass123"}, follow_redirects=True)
+
+		sharer_id = create_user(f"dismiss_sharer_{id(object())}@test.com", "Sharer", "pass")
+		create_friend_request(sharer_id, rec_id)
+		req = Select.get_pending_friend_requests_for_user(rec_id)[0][0]
+		accept_friend_request(req.id, rec_id)
+		rid = create_recipe("Dismiss Route Recipe", sharer_id)
+		share_id = create_recipe_share(rid, sharer_id, rec_id)
+
+		shares_before = Select.get_recipe_shares_for_recipient(rec_id)
+		assert len(shares_before) == 1
+
+		resp = client.post(
+			"/Notifications/Dismiss",
+			data={"notification_type": "recipe_share", "notification_id": share_id},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=True,
+		)
+		assert resp.status_code == 200
+		shares_after = Select.get_recipe_shares_for_recipient(rec_id)
+		assert len(shares_after) == 0
+
+	def test_dismiss_route_friend_request(self, logged_in_client, sharer_id, recipient_id):
+		"""POST /Notifications/Dismiss with friend_request dismisses and redirects."""
+		create_friend_request(sharer_id, recipient_id)
+		req = Select.get_pending_friend_requests_for_user(recipient_id)[0][0]
+
+		email = f"dismiss_fr_{id(object())}@test.com"
+		rec_id = create_user(email, "Dismiss FR Recipient", "Pass123")
+		client, _ = logged_in_client
+		client.post("/Logout", follow_redirects=True)
+		client.post("/Login", data={"email": email, "pass": "Pass123"}, follow_redirects=True)
+
+		requester_id = create_user(f"dismiss_requester_{id(object())}@test.com", "Requester", "pass")
+		create_friend_request(requester_id, rec_id)
+		req_id = Select.get_pending_friend_requests_for_user(rec_id)[0][0].id
+
+		pending_before = Select.get_pending_friend_requests_for_user(rec_id)
+		assert len(pending_before) == 1
+
+		resp = client.post(
+			"/Notifications/Dismiss",
+			data={"notification_type": "friend_request", "notification_id": req_id},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=True,
+		)
+		assert resp.status_code == 200
+		pending_after = Select.get_pending_friend_requests_for_user(rec_id)
+		assert len(pending_after) == 0
+
+	def test_dismiss_route_redirects_to_notifications(self, logged_in_client, recipe_share, recipient_id):
+		"""POST /Notifications/Dismiss redirects to notifications page."""
+		email = f"dismiss_redirect_{id(object())}@test.com"
+		rec_id = create_user(email, "Redirect Recipient", "Pass123")
+		client, _ = logged_in_client
+		client.post("/Logout", follow_redirects=True)
+		client.post("/Login", data={"email": email, "pass": "Pass123"}, follow_redirects=True)
+
+		sharer_id = create_user(f"dismiss_redirect_sharer_{id(object())}@test.com", "Sharer", "pass")
+		create_friend_request(sharer_id, rec_id)
+		req = Select.get_pending_friend_requests_for_user(rec_id)[0][0]
+		accept_friend_request(req.id, rec_id)
+		rid = create_recipe("Redirect Recipe", sharer_id)
+		share_id = create_recipe_share(rid, sharer_id, rec_id)
+
+		resp = client.post(
+			"/Notifications/Dismiss",
+			data={"notification_type": "recipe_share", "notification_id": share_id},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=False,
+		)
+		assert resp.status_code == 302
+		assert "Notifications" in resp.headers.get("Location", "")
+
+
 # ————————————————————————————————— Routes: notifications ——————————————————— #
 
 class TestNotificationsRecipeShares:
 	"""Tests that notifications page includes recipe shares."""
+
+	def test_dismiss_recipe_share_hides_from_notifications(self, recipe_share, recipient_id):
+		"""dismiss_notification hides recipe share from get_recipe_shares_for_recipient."""
+		shares_before = Select.get_recipe_shares_for_recipient(recipient_id)
+		assert len(shares_before) == 1
+
+		dismiss_notification(recipient_id, "recipe_share", recipe_share)
+		shares_after = Select.get_recipe_shares_for_recipient(recipient_id)
+		assert len(shares_after) == 0
+
+	def test_dismiss_friend_request_hides_from_pending(self, sharer_id, recipient_id, shared_recipe):
+		"""dismiss_notification hides friend request from get_pending_friend_requests_for_user."""
+		create_friend_request(sharer_id, recipient_id)
+		pending_before = Select.get_pending_friend_requests_for_user(recipient_id)
+		assert len(pending_before) == 1
+		req_id = pending_before[0][0].id
+
+		dismiss_notification(recipient_id, "friend_request", req_id)
+		pending_after = Select.get_pending_friend_requests_for_user(recipient_id)
+		assert len(pending_after) == 0
 
 	def test_notifications_shows_recipe_shares(self, logged_in_client, recipe_share, recipient_id):
 		"""GET /Friends/Notifications shows shared recipes when recipient is logged in."""
@@ -437,3 +624,20 @@ class TestNotificationsRecipeShares:
 		assert b"Shared recipes" in resp.data
 		assert b"Notif Shared Recipe" in resp.data
 		assert b"View recipe" in resp.data
+		assert b"notification-dismiss" in resp.data or b"aria-label=\"Dismiss\"" in resp.data
+
+	def test_notifications_shows_dismiss_button_for_friend_requests(self, logged_in_client, sharer_id, recipient_id):
+		"""GET /Friends/Notifications shows dismiss button for friend requests."""
+		create_friend_request(sharer_id, recipient_id)
+		email = f"dismiss_btn_{id(object())}@test.com"
+		rec_id = create_user(email, "Dismiss Btn Recipient", "Pass123")
+		client, _ = logged_in_client
+		client.post("/Logout", follow_redirects=True)
+		client.post("/Login", data={"email": email, "pass": "Pass123"}, follow_redirects=True)
+		requester_id = create_user(f"dismiss_btn_req_{id(object())}@test.com", "Requester", "pass")
+		create_friend_request(requester_id, rec_id)
+
+		resp = client.get("/Friends/Notifications", follow_redirects=True)
+		assert resp.status_code == 200
+		assert b"Friend requests" in resp.data
+		assert b"aria-label=\"Dismiss\"" in resp.data

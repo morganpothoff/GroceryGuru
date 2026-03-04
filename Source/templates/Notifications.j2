@@ -12,6 +12,11 @@
 			<ul class="notifications-list">
 				{% for fr, requester in pending_requests %}
 					<li class="notification-item">
+						<form method="POST" action="{{ url_for('dismiss_notification_route') }}" class="notification-dismiss-form">
+							<input type="hidden" name="notification_type" value="friend_request">
+							<input type="hidden" name="notification_id" value="{{ fr.id }}">
+							<button type="submit" class="notification-dismiss-btn" aria-label="Dismiss">×</button>
+						</form>
 						<div class="notification-content">
 							<p><strong>{{ requester.name | default(requester.email) }}</strong> ({{ requester.email }}) wants to be your friend.</p>
 							{% if fr.message %}<p class="notification-message text-muted">{{ fr.message }}</p>{% endif %}
@@ -36,6 +41,11 @@
 			<ul class="notifications-list">
 				{% for share, recipe, sharer in recipe_shares %}
 					<li class="notification-item">
+						<form method="POST" action="{{ url_for('dismiss_notification_route') }}" class="notification-dismiss-form">
+							<input type="hidden" name="notification_type" value="recipe_share">
+							<input type="hidden" name="notification_id" value="{{ share.id }}">
+							<button type="submit" class="notification-dismiss-btn" aria-label="Dismiss">×</button>
+						</form>
 						<div class="notification-content">
 							<p><strong>{{ sharer.name | default(sharer.email) }}</strong> shared a recipe! <strong>{{ recipe.title }}</strong></p>
 						</div>

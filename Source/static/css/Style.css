@@ -1429,10 +1429,40 @@ a:hover {
 	border-top: 1px solid var(--border);
 }
 
-.shared-by-banner {
+.shared-by-tag {
+	margin: -0.25rem 0 1rem 0;
+	font-size: 0.95rem;
+	color: var(--text-muted);
+}
+
+.shared-by-tag strong {
+	color: var(--text-secondary);
+}
+
+.notification-item {
+	position: relative;
+	padding-right: 2.5rem;
+}
+
+.notification-dismiss-form {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+}
+
+.notification-dismiss-btn {
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	font-size: 1.5rem;
+	line-height: 1;
+	padding: 0.25rem 0.5rem;
+	cursor: pointer;
+	border-radius: 4px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.notification-dismiss-btn:hover {
+	color: var(--text-primary);
 	background: var(--accent-bg);
-	padding: 0.75rem 1rem;
-	border-radius: 8px;
-	margin: 0 0 1rem 0;
-	border: 1px solid var(--border);
 }

@@ -11,10 +11,6 @@
 			</p>
 		</div>
 
-		<p class="shared-by-banner">
-			<strong>{{ sharer.name or sharer.email }}</strong> shared this recipe with you.
-		</p>
-
 		<div id="recipe-images-wrapper" class="{% if not recipe_images_data %}recipe-images-empty{% endif %}">
 			<div class="recipe-image-carousel" id="recipe-image-carousel" {% if not recipe_images_data %}style="display: none;"{% endif %}>
 				<button type="button" class="recipe-carousel-arrow recipe-carousel-prev recipe-carousel-arrow-hide" id="recipe-carousel-prev" aria-label="Previous image">‹</button>
@@ -30,6 +26,7 @@
 		</div>
 
 		<h1>{{ recipe.title }}</h1>
+		<p class="shared-by-tag">Shared by <strong>{{ sharer.name or sharer.email }}</strong></p>
 
 		<div id="recipe-view" class="recipe-profile-view">
 			<p class="recipe-source">

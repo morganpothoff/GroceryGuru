@@ -102,6 +102,10 @@ def _clean_db_before_test(request):
 				conn.execute("DELETE FROM RecipeShares")
 			except sqlite3.OperationalError:
 				pass
+			try:
+				conn.execute("DELETE FROM DismissedNotifications")
+			except sqlite3.OperationalError:
+				pass
 			conn.execute("DELETE FROM Recipes")
 			conn.execute("DELETE FROM InventoryIngredients")
 			conn.execute("DELETE FROM ListIngredients")
