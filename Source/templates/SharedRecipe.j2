@@ -76,11 +76,12 @@
 			</div>
 		</div>
 
-		<div class="shared-recipe-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-			<form method="post" action="{{ url_for('shared_recipe_detail', share_id=share.id) }}">
+		<div class="shared-recipe-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+			<form method="post" action="{{ url_for('shared_recipe_detail', share_id=share.id) }}" style="display: inline;">
 				<input type="hidden" name="action" value="add">
 				<button type="submit" class="btn btn-primary">Add to my recipes</button>
 			</form>
+			<a href="{{ url_for('notifications') }}" class="btn btn-secondary">Exit without adding</a>
 		</div>
 	</div>
 	<script>
