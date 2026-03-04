@@ -232,3 +232,34 @@ def get_friend_request_by_id(request_id: int, addressee_id: int):
 			FriendRequests.addressee_id == addressee_id,
 			FriendRequests.status == "pending",
 		).first()
+
+
+# ————————————————————————————————— Recipe shares ———————————————————————————————— #
+
+def get_recipe_shares_for_recipient(recipient_id: int):
+	"""Return (RecipeShares, Recipes, Persons) for shares received by user, newest first."""
+	from database import engine, RecipeShares, Recipes, Persons
+	with Session(engine) as session:
+		return session.query(RecipeShares, Recipes, Persons).join(
+			Recipes, getattr(RecipeShares, "Recipes.id") == Recipes.id,
+		).join(
+			Persons, RecipeShares.sharer_id == Persons.id,
+		).filter(
+			RecipeShares.recipient_id == recipient_id,
+			Recipes.is_deleted == False,
+		).order_by(RecipeShares.created_at.desc()).all()
+
+
+def get_recipe_share_by_id(share_id: int, recipient_id: int):
+	"""Return (RecipeShares, Recipes, Persons) for a share if recipient matches, else None."""
+	from database import engine, RecipeShares, Recipes, Persons
+	with Session(engine) as session:
+		return session.query(RecipeShares, Recipes, Persons).join(
+			Recipes, getattr(RecipeShares, "Recipes.id") == Recipes.id,
+		).join(
+			Persons, RecipeShares.sharer_id == Persons.id,
+		).filter(
+			RecipeShares.id == share_id,
+			RecipeShares.recipient_id == recipient_id,
+			Recipes.is_deleted == False,
+		).first()

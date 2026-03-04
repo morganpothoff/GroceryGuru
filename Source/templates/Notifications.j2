@@ -5,7 +5,7 @@
 {% block content %}
 	<div class="card">
 		<h1>Notifications</h1>
-		<p class="text-muted">Friend requests and activity.</p>
+		<p class="text-muted">Friend requests and shared recipes.</p>
 
 		<h2>Friend requests</h2>
 		{% if pending_requests %}
@@ -29,6 +29,24 @@
 			</ul>
 		{% else %}
 			<p class="text-muted">No pending friend requests.</p>
+		{% endif %}
+
+		<h2 style="margin-top: 2rem;">Shared recipes</h2>
+		{% if recipe_shares %}
+			<ul class="notifications-list">
+				{% for share, recipe, sharer in recipe_shares %}
+					<li class="notification-item">
+						<div class="notification-content">
+							<p><strong>{{ sharer.name | default(sharer.email) }}</strong> shared a recipe! <strong>{{ recipe.title }}</strong></p>
+						</div>
+						<div class="notification-actions">
+							<a href="{{ url_for('shared_recipe_detail', share_id=share.id) }}" class="btn btn-primary btn-sm">View recipe</a>
+						</div>
+					</li>
+				{% endfor %}
+			</ul>
+		{% else %}
+			<p class="text-muted">No shared recipes.</p>
 		{% endif %}
 	</div>
 {% endblock %}

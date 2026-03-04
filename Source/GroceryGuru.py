@@ -28,6 +28,7 @@ from database import (
 	upsert_recipe_rating, create_recipe_comment, create_recipe_image, delete_recipe_image,
 	create_friend_request, accept_friend_request, decline_friend_request, unfriend,
 	update_person_profile,
+	share_recipe_with_friends, add_shared_recipe_to_user,
 )
 import recipe_extractor
 
@@ -47,11 +48,17 @@ def inject_current_year():
 
 @app.context_processor
 def inject_notifications():
-	"""Inject pending friend request count and list for bell icon (logged-in users only)."""
+	"""Inject pending friend request count, recipe shares, and total for bell icon (logged-in users only)."""
 	if current_user.is_authenticated:
 		pending = database.Select.get_pending_friend_requests_for_user(current_user.id)
-		return {"notification_count": len(pending), "pending_friend_requests": pending}
-	return {"notification_count": 0, "pending_friend_requests": []}
+		recipe_shares = database.Select.get_recipe_shares_for_recipient(current_user.id)
+		total = len(pending) + len(recipe_shares)
+		return {
+			"notification_count": total,
+			"pending_friend_requests": pending,
+			"recipe_share_notifications": recipe_shares,
+		}
+	return {"notification_count": 0, "pending_friend_requests": [], "recipe_share_notifications": []}
 
 
 @app.context_processor
@@ -844,6 +851,7 @@ def recipe_detail(recipe_id: int):
 	recipe_images_data = [{"url": url_for("static", filename=img.file_path), "id": img.id} for img in recipe_images]
 	if not recipe_images_data and getattr(recipe, "image_url", None):
 		recipe_images_data = [{"url": recipe.image_url, "id": None}]
+	friends = database.Select.get_friends(current_user.id)
 	return render_template(
 		"Recipe.j2",
 		recipe=recipe,
@@ -855,8 +863,32 @@ def recipe_detail(recipe_id: int):
 		user_rating=user_rating,
 		comments=comments,
 		recipe_images_data=recipe_images_data,
+		friends=friends,
 		current_page="recipes",
 	)
+
+
+@app.route("/Recipe/<int:recipe_id>/share", methods=["POST"])
+@login_required
+def share_recipe(recipe_id: int):
+	"""Share a recipe with selected friends. Expects JSON: {"recipient_ids": [1, 2, ...]}."""
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return jsonify({"success": False, "error": "Recipe not found"}), 404
+	data = request.get_json(silent=True) or {}
+	recipient_ids = data.get("recipient_ids", [])
+	if not isinstance(recipient_ids, list):
+		recipient_ids = []
+	recipient_ids = [int(x) for x in recipient_ids if str(x).isdigit()]
+	if not recipient_ids:
+		return jsonify({"success": False, "error": "Select at least one friend"}), 400
+	success_count, errors = share_recipe_with_friends(recipe_id, current_user.id, recipient_ids)
+	if success_count == 0:
+		return jsonify({"success": False, "error": "; ".join(errors) if errors else "Could not share"}), 400
+	msg = f"Recipe shared with {success_count} friend{'s' if success_count != 1 else ''}."
+	if errors:
+		msg += " " + "; ".join(errors[:3])
+	return jsonify({"success": True, "message": msg, "shared_count": success_count})
 
 
 @app.route("/Recipe/<int:recipe_id>/delete-image/<int:image_id>", methods=["POST"])
@@ -967,9 +999,44 @@ def unfriend_route(friend_id: int):
 @app.route("/Friends/Notifications")
 @login_required
 def notifications():
-	"""Notifications page: pending friend requests (bell content)."""
+	"""Notifications page: pending friend requests and recipe shares."""
 	pending = database.Select.get_pending_friend_requests_for_user(current_user.id)
-	return render_template("Notifications.j2", pending_requests=pending)
+	recipe_shares = database.Select.get_recipe_shares_for_recipient(current_user.id)
+	return render_template("Notifications.j2", pending_requests=pending, recipe_shares=recipe_shares)
+
+
+@app.route("/Recipe/Shared/<int:share_id>", methods=["GET", "POST"])
+@login_required
+def shared_recipe_detail(share_id: int):
+	"""View a recipe shared with the current user. POST with action=add copies to their recipes."""
+	row = database.Select.get_recipe_share_by_id(share_id, current_user.id)
+	if row is None:
+		return "Shared recipe not found or you don't have access to it.", 404
+	share, recipe, sharer = row
+	recipe_id = recipe.id
+	if request.method == "POST" and request.form.get("action") == "add":
+		new_id = add_shared_recipe_to_user(share_id, current_user.id)
+		if new_id:
+			flash(f"Recipe added to your collection!", "success")
+			return redirect(url_for("recipe_detail", recipe_id=new_id))
+		else:
+			flash("Could not add recipe.", "error")
+	ingredients_list = [ln.strip() for ln in (recipe.ingredients or "").splitlines() if ln.strip()]
+	steps_list = [ln.strip() for ln in (recipe.steps or "").splitlines() if ln.strip()]
+	recipe_images = database.Select.get_recipe_images(recipe_id)
+	recipe_images_data = [{"url": url_for("static", filename=img.file_path), "id": img.id} for img in recipe_images]
+	if not recipe_images_data and getattr(recipe, "image_url", None):
+		recipe_images_data = [{"url": recipe.image_url, "id": None}]
+	return render_template(
+		"SharedRecipe.j2",
+		share=share,
+		recipe=recipe,
+		sharer=sharer,
+		ingredients_list=ingredients_list,
+		steps_list=steps_list,
+		recipe_images_data=recipe_images_data,
+		current_page="recipes",
+	)
 
 
 if __name__ == "__main__":
