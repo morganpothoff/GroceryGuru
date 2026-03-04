@@ -23,6 +23,7 @@ from database import (
 	find_matching_inventory_item, add_inventory_count,
 	update_inventory_ingredient, soft_delete_inventory_ingredient,
 	update_list_ingredient, soft_delete_list_ingredient,
+	update_list, delete_list,
 	create_recipe, update_recipe, soft_delete_recipe,
 	upsert_recipe_rating, create_recipe_comment, create_recipe_image, delete_recipe_image,
 	create_friend_request, accept_friend_request, decline_friend_request, unfriend,
@@ -51,6 +52,18 @@ def inject_notifications():
 		pending = database.Select.get_pending_friend_requests_for_user(current_user.id)
 		return {"notification_count": len(pending), "pending_friend_requests": pending}
 	return {"notification_count": 0, "pending_friend_requests": []}
+
+
+@app.context_processor
+def inject_user_lists():
+	"""Inject user lists for nav dropdown (Grocery list first, then custom lists alphabetically)."""
+	if current_user.is_authenticated:
+		lists = database.Select.get_Lists_by_Persons_id(current_user.id)
+		grocery = next((l for l in lists if l.name == "Grocery list"), None)
+		custom = sorted([l for l in lists if l.name != "Grocery list"], key=lambda l: l.name)
+		ordered = ([grocery] if grocery else []) + custom
+		return {"user_lists": ordered}
+	return {"user_lists": []}
 
 
 @app.template_filter("date_str")
@@ -180,10 +193,54 @@ def create_list_route():
 	"""Create a new empty list and redirect to its view."""
 	list_name = request.form.get("list_name", "").strip()
 	if not list_name:
-		return redirect(url_for("display_ingredients", user_id=current_user.id))
+		redirect_to = request.form.get("redirect_to") or url_for("lists_index")
+		return redirect(redirect_to)
 	user_id = current_user.id
 	get_or_create_list(list_name, user_id)
-	return redirect(url_for("display_ingredients", user_id=user_id, list_name=list_name))
+	redirect_to = request.form.get("redirect_to") or url_for("display_ingredients", user_id=user_id, list_name=list_name)
+	return redirect(redirect_to)
+
+
+@app.route("/Lists/Update", methods=["POST"])
+@login_required
+def update_lists_route():
+	"""Update multiple list names. Form keys: list_<id>=<new_name>."""
+	updated = 0
+	for key, value in request.form.items():
+		if key.startswith("list_") and key[5:].isdigit():
+			list_id = int(key[5:])
+			new_name = (value or "").strip()
+			if new_name and update_list(list_id, new_name, current_user.id):
+				updated += 1
+	if updated:
+		flash(f"{updated} list{'s' if updated != 1 else ''} updated.", "success")
+	return redirect(url_for("lists_index"))
+
+
+@app.route("/Lists/<int:list_id>/Delete", methods=["POST"])
+@login_required
+def delete_list_route(list_id: int):
+	"""Delete a list and all its items."""
+	if delete_list(list_id, current_user.id):
+		flash("List and all its items have been deleted.", "success")
+	else:
+		flash("List not found or you don't have permission to delete it.", "error")
+	return redirect(url_for("lists_index"))
+
+
+@app.route("/Lists")
+@login_required
+def lists_index():
+	"""All lists overview: show links to each list."""
+	all_lists = database.Select.get_Lists_by_Persons_id(current_user.id)
+	if not all_lists:
+		get_or_create_list("Grocery list", current_user.id)
+		all_lists = database.Select.get_Lists_by_Persons_id(current_user.id)
+	grocery = next((l for l in all_lists if l.name == "Grocery list"), None)
+	custom = sorted([l for l in all_lists if l.name != "Grocery list"], key=lambda l: l.name)
+	ordered_lists = ([grocery] if grocery else []) + custom
+	list_counts = {lst.id: len(database.Select.get_ListIngredients_by_Lists_id(lst.id, current_user.id)) for lst in ordered_lists}
+	return render_template("ListsOverview.j2", user_id=current_user.id, all_lists=ordered_lists, list_counts=list_counts, current_page="lists")
 
 
 @app.route("/ShoppingList/<int:user_id>")
@@ -467,6 +524,51 @@ def add_pantry_item():
 RECIPE_CATEGORIES = ["Desserts", "Dinners", "Breakfasts"]
 
 
+def _get_pantry_ingredient_names(user_id: int):
+	"""Return set of lowercase pantry ingredient names for matching."""
+	rows = database.Select.get_InventoryIngredients_by_Persons_id(user_id)
+	return {ing.name.strip().lower() for _, ing in rows if ing and ing.name}
+
+
+def _count_pantry_matches(recipe_ingredients_text: str, pantry_names: set) -> int:
+	"""Count how many pantry ingredients appear in recipe ingredient lines. Each pantry item counted at most once."""
+	lines = [ln.strip() for ln in (recipe_ingredients_text or "").splitlines() if ln.strip()]
+	line_lower = " ".join(lines).lower()
+	matched = 0
+	for name in pantry_names:
+		if len(name) < 2:  # Skip very short names
+			continue
+		if name in line_lower:
+			matched += 1
+	return matched
+
+
+def _recipe_ingredient_in_pantry(ingredient_line: str, pantry_names: set) -> bool:
+	"""Check if a recipe ingredient line matches any pantry ingredient."""
+	line_lower = (ingredient_line or "").strip().lower()
+	if not line_lower:
+		return False
+	for name in pantry_names:
+		if len(name) >= 2 and name in line_lower:
+			return True
+	return False
+
+
+def _get_recipes_sorted_by_pantry_match(user_id: int, category: str = None):
+	"""Return list of (recipe, match_count) sorted by match_count descending. category can be '' for Others, None for Any."""
+	recipes = database.Select.get_Recipes_by_Persons_id(user_id)
+	if category and str(category).strip():
+		cat = category.strip()
+		if cat.lower() == "others":
+			recipes = [r for r in recipes if not (r.category or "").strip()]
+		else:
+			recipes = [r for r in recipes if (r.category or "").strip() == cat]
+	pantry_names = _get_pantry_ingredient_names(user_id)
+	scored = [(r, _count_pantry_matches(r.ingredients or "", pantry_names)) for r in recipes]
+	scored.sort(key=lambda x: -x[1])  # Descending by match count
+	return scored
+
+
 @app.route("/Recipes")
 @login_required
 def recipes_index():
@@ -569,6 +671,109 @@ def add_recipe():
 		)
 		return redirect(url_for("recipe_detail", recipe_id=rid))
 	return render_template("AddRecipe.j2", current_page="recipes")
+
+
+@app.route("/FindRecipe", methods=["GET", "POST"])
+@login_required
+def find_recipe():
+	"""Find a Recipe questionnaire: user selects recipe type, then we find best matches by pantry."""
+	if request.method == "POST":
+		recipe_type = request.form.get("recipe_type", "").strip()
+		scored = _get_recipes_sorted_by_pantry_match(current_user.id, recipe_type or None)
+		recipe_ids = [r.id for r, _ in scored]
+		if not recipe_ids:
+			return render_template(
+				"FindRecipe.j2",
+				error="No recipes match your criteria. Add some recipes first, or try a different category.",
+				current_page="recipes",
+			)
+		# Redirect to results with ids and start at index 0
+		ids_param = ",".join(str(i) for i in recipe_ids)
+		return redirect(url_for("find_recipe_results", ids=ids_param, i=0))
+	return render_template("FindRecipe.j2", current_page="recipes")
+
+
+@app.route("/FindRecipe/Results")
+@login_required
+def find_recipe_results():
+	"""Display recipe results with circular prev/next browsing. ids=comma-separated recipe IDs, i=current index."""
+	ids_param = request.args.get("ids", "")
+	idx_param = request.args.get("i", "0")
+	try:
+		recipe_ids = [int(x.strip()) for x in ids_param.split(",") if x.strip()]
+		idx = int(idx_param)
+	except (ValueError, TypeError):
+		return redirect(url_for("find_recipe"))
+	if not recipe_ids:
+		return redirect(url_for("find_recipe"))
+	# Circular index
+	n = len(recipe_ids)
+	idx = ((idx % n) + n) % n
+	recipe_id = recipe_ids[idx]
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return "Recipe not found.", 404
+	ingredients_list = [ln.strip() for ln in (recipe.ingredients or "").splitlines() if ln.strip()]
+	steps_list = [ln.strip() for ln in (recipe.steps or "").splitlines() if ln.strip()]
+	pantry_names = _get_pantry_ingredient_names(current_user.id)
+	match_count = _count_pantry_matches(recipe.ingredients or "", pantry_names)
+	# For each ingredient, mark if in pantry
+	ingredients_with_pantry = [(line, _recipe_ingredient_in_pantry(line, pantry_names)) for line in ingredients_list]
+	recipe_images = database.Select.get_recipe_images(recipe_id)
+	recipe_images_data = [{"url": url_for("static", filename=img.file_path), "id": img.id} for img in recipe_images]
+	if not recipe_images_data and getattr(recipe, "image_url", None):
+		recipe_images_data = [{"url": recipe.image_url, "id": None}]
+	dest_options = _get_destination_options(current_user.id)
+	prev_idx = (idx - 1) % n
+	next_idx = (idx + 1) % n
+	ids_param = ",".join(str(rid) for rid in recipe_ids)
+	return render_template(
+		"FindRecipeResults.j2",
+		recipe=recipe,
+		ingredients_list=ingredients_list,
+		ingredients_with_pantry=ingredients_with_pantry,
+		steps_list=steps_list,
+		recipe_images_data=recipe_images_data,
+		match_count=match_count,
+		recipe_ids=recipe_ids,
+		ids_param=ids_param,
+		idx=idx,
+		prev_idx=prev_idx,
+		next_idx=next_idx,
+		dest_options=dest_options,
+		current_page="recipes",
+	)
+
+
+@app.route("/FindRecipe/AddToShoppingList", methods=["POST"])
+@login_required
+def find_recipe_add_to_list():
+	"""Add recipe ingredients to shopping list. Optional: include ingredients already in pantry."""
+	recipe_id = request.form.get("recipe_id", type=int)
+	include_owned = request.form.get("include_owned") == "on"
+	destination = request.form.get("destination", "Grocery list").strip()
+	new_list_name = request.form.get("new_list_name", "").strip()
+	if destination == "__new__":
+		destination = new_list_name or "Grocery list"
+	recipe = database.Select.get_Recipe_by_id(recipe_id, current_user.id)
+	if recipe is None:
+		return "Recipe not found.", 404
+	ingredients_list = [ln.strip() for ln in (recipe.ingredients or "").splitlines() if ln.strip()]
+	pantry_names = _get_pantry_ingredient_names(current_user.id)
+	user_id = current_user.id
+	now = datetime.utcnow()
+	added = 0
+	for line in ingredients_list:
+		if not line:
+			continue
+		in_pantry = _recipe_ingredient_in_pantry(line, pantry_names)
+		if not include_owned and in_pantry:
+			continue
+		ingredient_id = get_or_create_ingredient(line, user_id)
+		list_id = get_or_create_list(destination, user_id)
+		create_list_ingredient(1, now, ingredient_id, list_id)
+		added += 1
+	return redirect(url_for("display_ingredients", user_id=user_id, list_name=destination))
 
 
 @app.route("/Recipes/<category>")

@@ -353,3 +353,36 @@ class TestPantryItemAccess:
 		names = [ing.name for _, ing in items]
 		assert "Visible" in names
 		assert "Deleted" not in names
+
+
+# ————————————————————————————————— Pantry Add item link —————————————————————— #
+
+class TestPantryAddItemLink:
+	"""Tests for Add Item button/link on My Pantry page."""
+
+	def test_pantry_page_has_add_item_link(self, logged_in_client):
+		"""GET /Pantry/<id> shows Add item link."""
+		client, user_id = logged_in_client
+		resp = client.get(f"/Pantry/{user_id}", follow_redirects=True)
+		assert resp.status_code == 200
+		assert b"Add item" in resp.data
+
+	def test_add_list_item_to_pantry_adds_to_inventory(self, logged_in_client):
+		"""POST /AddListItem with destination=pantry adds item to pantry."""
+		client, user_id = logged_in_client
+		resp = client.post(
+			"/AddListItem",
+			data={
+				"destination": "pantry",
+				"item_name": "Manual Pantry Item",
+				"quantity": "2",
+			},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=True,
+		)
+		assert resp.status_code == 200
+
+		items = Select.get_InventoryIngredients_by_Persons_id(user_id)
+		assert len(items) >= 1
+		names = [ing.name for _, ing in items]
+		assert "Manual Pantry Item" in names

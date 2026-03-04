@@ -45,6 +45,16 @@ def get_Lists_by_Persons_id(Persons_id: int):
 		).order_by(Lists.name).all()
 
 
+def get_List_by_id(list_id: int, Persons_id: int):
+	"""Return a List by id if it belongs to the user, else None."""
+	from database import engine, Lists
+	with Session(engine) as session:
+		return session.query(Lists).filter(
+			Lists.id == list_id,
+			getattr(Lists, "Persons.id") == Persons_id,
+		).first()
+
+
 def get_ListIngredients_by_Lists_id(list_id: int, Persons_id: int):
 	"""Return (ListIngredients, Ingredients) tuples for a specific list, only if list belongs to user.
 	Excludes soft-deleted list ingredients."""
