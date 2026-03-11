@@ -657,6 +657,35 @@ a:hover {
 	margin: 0;
 }
 
+/* --- Legal pages (Privacy, Terms, Contact) --- */
+.legal-page h1 {
+	margin-bottom: 0.25rem;
+}
+
+.legal-section {
+	margin-bottom: 1.5rem;
+}
+
+.legal-section:last-child {
+	margin-bottom: 0;
+}
+
+.legal-section h3 {
+	font-size: 1.1rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+	margin: 0 0 0.5rem 0;
+}
+
+.legal-section p,
+.legal-section ul {
+	margin: 0 0 0.5rem 0;
+}
+
+.legal-section ul {
+	padding-left: 1.5rem;
+}
+
 /* --- Barcode scanner --- */
 .scanner-wrapper {
 	position: relative;
@@ -1113,13 +1142,15 @@ a:hover {
 	color: var(--accent);
 }
 
-.find-recipe-add-section {
+.find-recipe-add-section,
+.recipe-add-section {
 	margin-top: 2rem;
 	padding-top: 1.5rem;
 	border-top: 1px solid var(--border);
 }
 
-.find-recipe-add-section h3 {
+.find-recipe-add-section h3,
+.recipe-add-section h3 {
 	font-size: 1.2rem;
 	margin: 0 0 1rem 0;
 }

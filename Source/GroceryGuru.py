@@ -170,17 +170,17 @@ def faq():
 
 @app.route("/Privacy")
 def privacy():
-	return render_template("Placeholder.j2", title="Privacy Policy", page_name="Privacy Policy")
+	return render_template("Privacy.j2")
 
 
 @app.route("/Terms")
 def terms():
-	return render_template("Placeholder.j2", title="Terms of Service", page_name="Terms of Service")
+	return render_template("Terms.j2")
 
 
 @app.route("/Contact")
 def contact():
-	return render_template("Placeholder.j2", title="Contact", page_name="Contact")
+	return render_template("Contact.j2")
 
 
 @app.route("/CreateUserTest")
@@ -735,6 +735,11 @@ def find_recipe_results():
 	prev_idx = (idx - 1) % n
 	next_idx = (idx + 1) % n
 	ids_param = ",".join(str(rid) for rid in recipe_ids)
+	avg_rating = database.Select.get_recipe_average_rating(recipe_id)
+	rating_count = database.Select.get_recipe_rating_count(recipe_id)
+	user_rating = database.Select.get_user_recipe_rating(recipe_id, current_user.id)
+	comments = database.Select.get_recipe_comments(recipe_id)
+	friends = database.Select.get_friends(current_user.id)
 	return render_template(
 		"FindRecipeResults.j2",
 		recipe=recipe,
@@ -749,6 +754,12 @@ def find_recipe_results():
 		prev_idx=prev_idx,
 		next_idx=next_idx,
 		dest_options=dest_options,
+		average_rating=avg_rating,
+		rating_count=rating_count,
+		user_rating=user_rating,
+		comments=comments,
+		friends=friends,
+		categories=RECIPE_CATEGORIES,
 		current_page="recipes",
 	)
 
@@ -781,6 +792,38 @@ def find_recipe_add_to_list():
 		list_id = get_or_create_list(destination, user_id)
 		create_list_ingredient(1, now, ingredient_id, list_id)
 		added += 1
+	return redirect(url_for("display_ingredients", user_id=user_id, list_name=destination))
+
+
+@app.route("/Recipe/Shared/<int:share_id>/AddToShoppingList", methods=["POST"])
+@login_required
+def shared_recipe_add_to_list(share_id: int):
+	"""Add ingredients from a shared recipe to the user's list."""
+	row = database.Select.get_recipe_share_by_id(share_id, current_user.id)
+	if row is None:
+		return "Shared recipe not found or you don't have access to it.", 404
+	share, recipe, sharer = row
+	include_owned = request.form.get("include_owned") == "on"
+	destination = request.form.get("destination", "Grocery list").strip()
+	new_list_name = request.form.get("new_list_name", "").strip()
+	if destination == "__new__":
+		destination = new_list_name or "Grocery list"
+	ingredients_list = [ln.strip() for ln in (recipe.ingredients or "").splitlines() if ln.strip()]
+	pantry_names = _get_pantry_ingredient_names(current_user.id)
+	user_id = current_user.id
+	now = datetime.utcnow()
+	added = 0
+	for line in ingredients_list:
+		if not line:
+			continue
+		in_pantry = _recipe_ingredient_in_pantry(line, pantry_names)
+		if not include_owned and in_pantry:
+			continue
+		ingredient_id = get_or_create_ingredient(line, user_id)
+		list_id = get_or_create_list(destination, user_id)
+		create_list_ingredient(1, now, ingredient_id, list_id)
+		added += 1
+	flash(f"Added {added} ingredient{'s' if added != 1 else ''} to {destination}.", "success")
 	return redirect(url_for("display_ingredients", user_id=user_id, list_name=destination))
 
 
@@ -853,6 +896,7 @@ def recipe_detail(recipe_id: int):
 	if not recipe_images_data and getattr(recipe, "image_url", None):
 		recipe_images_data = [{"url": recipe.image_url, "id": None}]
 	friends = database.Select.get_friends(current_user.id)
+	dest_options = _get_destination_options(current_user.id)
 	return render_template(
 		"Recipe.j2",
 		recipe=recipe,
@@ -865,6 +909,7 @@ def recipe_detail(recipe_id: int):
 		comments=comments,
 		recipe_images_data=recipe_images_data,
 		friends=friends,
+		dest_options=dest_options,
 		current_page="recipes",
 	)
 
@@ -1044,6 +1089,7 @@ def shared_recipe_detail(share_id: int):
 	recipe_images_data = [{"url": url_for("static", filename=img.file_path), "id": img.id} for img in recipe_images]
 	if not recipe_images_data and getattr(recipe, "image_url", None):
 		recipe_images_data = [{"url": recipe.image_url, "id": None}]
+	dest_options = _get_destination_options(current_user.id)
 	return render_template(
 		"SharedRecipe.j2",
 		share=share,
@@ -1052,6 +1098,7 @@ def shared_recipe_detail(share_id: int):
 		ingredients_list=ingredients_list,
 		steps_list=steps_list,
 		recipe_images_data=recipe_images_data,
+		dest_options=dest_options,
 		current_page="recipes",
 	)
 

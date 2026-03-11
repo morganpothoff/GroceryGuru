@@ -1,0 +1,50 @@
+{% extends "Base.j2" %}
+
+{% block title %}Terms of Service — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card legal-page">
+		<h1>Terms of Service</h1>
+		<p class="text-muted">Last updated: {{ current_year }}</p>
+
+		<section class="legal-section">
+			<h3>Acceptance of Terms</h3>
+			<p>By using Grocery Guru, you agree to these Terms of Service. If you do not agree, please do not use the service.</p>
+		</section>
+
+		<section class="legal-section">
+			<h3>Description of Service</h3>
+			<p>Grocery Guru is a grocery list and recipe management app that helps you organize shopping lists, track pantry items, save and share recipes, and discover meals based on ingredients you have.</p>
+		</section>
+
+		<section class="legal-section">
+			<h3>Your Account</h3>
+			<p>You must provide accurate information when creating an account. You are responsible for maintaining the confidentiality of your password and for all activity under your account.</p>
+		</section>
+
+		<section class="legal-section">
+			<h3>Acceptable Use</h3>
+			<p>You agree to use Grocery Guru only for lawful purposes. You may not:</p>
+			<ul>
+				<li>Share content that infringes on others' rights or is harmful, abusive, or illegal</li>
+				<li>Attempt to gain unauthorized access to the service or other users' accounts</li>
+				<li>Use the service to spam, harass, or harm others</li>
+			</ul>
+		</section>
+
+		<section class="legal-section">
+			<h3>Content You Provide</h3>
+			<p>You retain ownership of the content you create (lists, recipes, etc.). By using the service, you grant us a license to store, display, and process your content as needed to provide Grocery Guru.</p>
+		</section>
+
+		<section class="legal-section">
+			<h3>Service Availability</h3>
+			<p>We strive to keep Grocery Guru available but do not guarantee uninterrupted access. We may modify or discontinue features with reasonable notice.</p>
+		</section>
+
+		<section class="legal-section">
+			<h3>Contact</h3>
+			<p>Questions about these terms? <a href="{{ url_for('contact') }}">Contact us</a>.</p>
+		</section>
+	</div>
+{% endblock %}

@@ -73,6 +73,32 @@
 			</div>
 		</div>
 
+		<div class="find-recipe-add-section" style="margin-top: 1.5rem;">
+			<h3>Add ingredients to shopping list</h3>
+			<form method="POST" action="{{ url_for('shared_recipe_add_to_list', share_id=share.id) }}" class="add-to-list-form">
+				<div class="form-group">
+					<label for="destination">Add to</label>
+					<select id="destination" name="destination" required>
+						{% for value, label in dest_options %}
+						<option value="{{ value }}" {% if value == 'Grocery list' %}selected{% endif %}>{{ label }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="form-group" id="new-list-group" style="display: none;">
+					<label for="new_list_name">New list name</label>
+					<input type="text" id="new_list_name" name="new_list_name" placeholder="e.g. Birthday Party Shopping">
+				</div>
+				<div class="form-group">
+					<label class="checkbox-label">
+						<input type="checkbox" name="include_owned" id="include_owned" value="on">
+						Include ingredients I already have
+					</label>
+					<p class="text-muted form-hint">Leave unchecked to add only missing ingredients.</p>
+				</div>
+				<button type="submit" class="btn btn-primary">Add ingredients to shopping list</button>
+			</form>
+		</div>
+
 		<div class="shared-recipe-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
 			<form method="post" action="{{ url_for('shared_recipe_detail', share_id=share.id) }}" style="display: inline;">
 				<input type="hidden" name="action" value="add">
@@ -150,6 +176,14 @@
 				if (n < 2) return;
 				carouselIdx = showSlide(carouselIdx + 1);
 			});
+		}
+
+		var dest = document.getElementById('destination');
+		var newGroup = document.getElementById('new-list-group');
+		if (dest && newGroup) {
+			function toggle() { newGroup.style.display = dest.value === '__new__' ? 'block' : 'none'; }
+			dest.addEventListener('change', toggle);
+			toggle();
 		}
 	})();
 	</script>

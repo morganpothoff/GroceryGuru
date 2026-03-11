@@ -4,7 +4,16 @@
 
 {% block content %}
 	<div class="card find-recipe-results">
-		<p style="margin: 0 0 1rem 0;"><a href="{{ url_for('find_recipe') }}">← Back to Find a Recipe</a></p>
+		<div class="recipe-header-row">
+			<p class="recipe-breadcrumb" style="margin: 0;">
+				<a href="{{ url_for('find_recipe') }}">← Find a Recipe</a>
+				{% if recipe.category %}
+					| <a href="{{ url_for('recipes_by_category', category=recipe.category) }}">{{ recipe.category }}</a>
+				{% else %}
+					| <a href="{{ url_for('recipes_by_category', category='Others') }}">Others</a>
+				{% endif %}
+			</p>
+		</div>
 
 		<div class="find-recipe-nav">
 			<a href="{{ url_for('find_recipe_results', ids=ids_param, i=prev_idx) }}" class="btn btn-secondary find-recipe-arrow" aria-label="Previous recipe">‹ Prev</a>
@@ -16,15 +25,72 @@
 			<span class="match-count">{{ match_count }}</span> ingredient{{ 's' if match_count != 1 else '' }} from your pantry
 		</div>
 
-		<div id="find-recipe-images" class="{% if not recipe_images_data %}recipe-images-empty{% endif %}">
-			{% if recipe_images_data %}
-				<div class="recipe-image-carousel">
-					<img src="{{ recipe_images_data[0].url }}" alt="{{ recipe.title }}" class="recipe-carousel-img">
+		<div id="recipe-images-wrapper" class="{% if not recipe_images_data %}recipe-images-empty{% endif %}">
+			<div class="recipe-image-carousel" id="recipe-image-carousel" {% if not recipe_images_data %}style="display: none;"{% endif %}>
+				<button type="button" class="recipe-carousel-arrow recipe-carousel-prev recipe-carousel-arrow-hide" id="recipe-carousel-prev" aria-label="Previous image">‹</button>
+				<div class="recipe-carousel-inner" id="recipe-carousel-inner">
+					{% for img in recipe_images_data %}
+						<div class="recipe-carousel-slide {% if loop.first %}active{% endif %}">
+							<img src="{{ img.url }}" alt="{{ recipe.title }}" class="recipe-carousel-img {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}">
+						</div>
+					{% endfor %}
 				</div>
-			{% endif %}
+				<button type="button" class="recipe-carousel-arrow recipe-carousel-next recipe-carousel-arrow-hide" id="recipe-carousel-next" aria-label="Next image">›</button>
+			</div>
 		</div>
 
 		<h1>{{ recipe.title }}</h1>
+
+		<div class="recipe-rating-section">
+			<div class="recipe-rating-display" aria-label="Average rating: {{ average_rating or 'No ratings yet' }}">
+				{% for i in range(1, 6) %}
+					<span class="recipe-star {% if average_rating and i <= (average_rating|round) %}filled{% endif %}">★</span>
+				{% endfor %}
+				{% if rating_count %}
+					<span class="recipe-rating-text">({{ average_rating }}) {{ rating_count }} rating{{ 's' if rating_count != 1 else '' }}</span>
+				{% else %}
+					<span class="recipe-rating-text text-muted">No ratings yet</span>
+				{% endif %}
+			</div>
+			<form method="post" action="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="recipe-rate-form">
+				<input type="hidden" name="action" value="rate">
+				<span class="recipe-rate-label">Rate:</span>
+				{% for i in range(1, 6) %}
+					<button type="submit" name="rating" value="{{ i }}" class="recipe-star-btn {% if user_rating == i %}selected{% endif %}" title="Rate {{ i }} star{{ 's' if i > 1 else '' }}" aria-pressed="{% if user_rating == i %}true{% else %}false{% endif %}">★</button>
+				{% endfor %}
+			</form>
+		</div>
+
+		<div id="find-recipe-actions" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+			<button type="button" id="btn-share-recipe" class="btn btn-outline">Share</button>
+		</div>
+
+		<!-- Share recipe modal -->
+		<div id="share-recipe-modal" class="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-modal-title" style="display: none;">
+			<div class="share-modal-overlay" id="share-modal-overlay"></div>
+			<div class="share-modal-content">
+				<h2 id="share-modal-title">Share recipe with friends</h2>
+				{% if friends %}
+					<ul class="share-friends-list">
+						{% for friend in friends %}
+							<li class="share-friend-item">
+								<label class="share-friend-label">
+									<input type="checkbox" class="share-friend-checkbox" value="{{ friend.id }}" name="share_friend">
+									<span class="share-friend-name">{{ friend.name or friend.email }}</span>
+									{% if friend.email %}<span class="share-friend-email text-muted">({{ friend.email }})</span>{% endif %}
+								</label>
+							</li>
+						{% endfor %}
+					</ul>
+				{% else %}
+					<p class="text-muted">You don't have any friends yet. <a href="{{ url_for('add_friend') }}">Add a friend</a> to share recipes with them.</p>
+				{% endif %}
+				<div class="share-modal-actions">
+					<button type="button" id="share-modal-cancel" class="btn btn-secondary">Cancel</button>
+					<button type="button" id="share-modal-send" class="btn btn-primary" {% if not friends %}disabled{% endif %}>Send</button>
+				</div>
+			</div>
+		</div>
 
 		<div class="recipe-profile-view">
 			<p class="recipe-source">
@@ -37,10 +103,13 @@
 			</p>
 			<div class="recipe-section">
 				<h3>Ingredients</h3>
-				<ul class="recipe-checklist">
+				<ul class="recipe-checklist" id="recipe-ingredients-list">
 					{% for line, in_pantry in ingredients_with_pantry %}
 					<li class="recipe-check-item {% if in_pantry %}ingredient-in-pantry{% endif %}">
-						<span class="recipe-check-text">{{ line }}</span>
+						<label class="recipe-check-label">
+							<input type="checkbox" class="recipe-checkbox" data-type="ingredients" data-index="{{ loop.index0 }}">
+							<span class="recipe-check-text">{{ line }}</span>
+						</label>
 						{% if in_pantry %}<span class="pantry-badge" title="In your pantry">✓</span>{% endif %}
 					</li>
 					{% else %}
@@ -50,10 +119,13 @@
 			</div>
 			<div class="recipe-section">
 				<h3>Steps</h3>
-				<ul class="recipe-checklist">
+				<ul class="recipe-checklist" id="recipe-steps-list">
 					{% for line in steps_list %}
 					<li class="recipe-check-item">
-						<span class="recipe-check-text">{{ line }}</span>
+						<label class="recipe-check-label">
+							<input type="checkbox" class="recipe-checkbox" data-type="steps" data-index="{{ loop.index0 }}">
+							<span class="recipe-check-text">{{ line }}</span>
+						</label>
 					</li>
 					{% else %}
 					<li class="recipe-check-empty"><span class="text-muted">(none)</span></li>
@@ -65,6 +137,29 @@
 				<pre class="recipe-block">{{ recipe.special_notes or '(none)' }}</pre>
 			</div>
 		</div>
+
+		<section class="recipe-comments-section">
+			<h3>Comments</h3>
+			<form method="post" action="{{ url_for('recipe_detail', recipe_id=recipe.id) }}" class="recipe-comment-form">
+				<input type="hidden" name="action" value="comment">
+				<div class="form-group">
+					<label for="comment_body" class="sr-only">Add a comment</label>
+					<textarea id="comment_body" name="comment_body" rows="3" placeholder="Add a comment..." required></textarea>
+				</div>
+				<button type="submit" class="btn btn-primary">Post comment</button>
+			</form>
+			<ul class="recipe-comments-list">
+				{% for comment, person in comments %}
+				<li class="recipe-comment">
+					<div class="recipe-comment-author">{{ person.name or person.email or 'Anonymous' }}</div>
+					<div class="recipe-comment-body">{{ comment.body }}</div>
+					<div class="recipe-comment-date text-muted">{{ (comment.created_at|string)[:16] if comment.created_at else '' }}</div>
+				</li>
+				{% else %}
+				<li class="recipe-comment-empty text-muted">No comments yet. Be the first to comment!</li>
+				{% endfor %}
+			</ul>
+		</section>
 
 		<div class="find-recipe-add-section">
 			<h3>Add ingredients to shopping list</h3>
@@ -101,12 +196,108 @@
 	</div>
 	<script>
 	(function() {
+		var recipeId = {{ recipe.id }};
+		var storageKey = function(type) { return 'find-recipe-' + recipeId + '-' + type; };
+
+		// Restore checkbox state from localStorage
+		function loadChecks(type) {
+			try {
+				var raw = localStorage.getItem(storageKey(type));
+				if (raw) {
+					var idx = JSON.parse(raw);
+					document.querySelectorAll('.recipe-checkbox[data-type="' + type + '"]').forEach(function(cb) {
+						cb.checked = idx.indexOf(parseInt(cb.dataset.index, 10)) >= 0;
+					});
+				}
+			} catch (e) {}
+		}
+		loadChecks('ingredients');
+		loadChecks('steps');
+
+		document.querySelectorAll('.recipe-checkbox').forEach(function(cb) {
+			cb.addEventListener('change', function() {
+				var type = this.dataset.type;
+				var checked = [];
+				document.querySelectorAll('.recipe-checkbox[data-type="' + type + '"]').forEach(function(c) {
+					if (c.checked) checked.push(parseInt(c.dataset.index, 10));
+				});
+				try { localStorage.setItem(storageKey(type), JSON.stringify(checked)); } catch (e) {}
+			});
+		});
+
 		var dest = document.getElementById('destination');
 		var newGroup = document.getElementById('new-list-group');
 		if (dest && newGroup) {
 			function toggle() { newGroup.style.display = dest.value === '__new__' ? 'block' : 'none'; }
 			dest.addEventListener('change', toggle);
 			toggle();
+		}
+
+		// Carousel
+		var carousel = document.getElementById('recipe-image-carousel');
+		var carouselInner = document.getElementById('recipe-carousel-inner');
+		var prevBtn = document.getElementById('recipe-carousel-prev');
+		var nextBtn = document.getElementById('recipe-carousel-next');
+		function countSlides() { return (carouselInner && carouselInner.querySelectorAll('.recipe-carousel-slide').length) || 0; }
+		function updateArrows() {
+			var n = countSlides();
+			if (prevBtn && nextBtn) {
+				prevBtn.classList.toggle('recipe-carousel-arrow-hide', n < 2);
+				nextBtn.classList.toggle('recipe-carousel-arrow-hide', n < 2);
+			}
+		}
+		updateArrows();
+		function showSlide(i) {
+			var imgs = carousel && carousel.querySelectorAll('.recipe-carousel-img');
+			var slides = carousel && carousel.querySelectorAll('.recipe-carousel-slide');
+			if (!imgs || !imgs.length) return;
+			var n = imgs.length;
+			var idx = ((i % n) + n) % n;
+			imgs.forEach(function(img, j) { img.classList.toggle('active', j === idx); });
+			if (slides && slides.length) slides.forEach(function(slide, j) { slide.classList.toggle('active', j === idx); });
+			return idx;
+		}
+		var carouselIdx = 0;
+		if (carousel && prevBtn && nextBtn) {
+			prevBtn.addEventListener('click', function() {
+				if (countSlides() < 2) return;
+				carouselIdx = showSlide(carouselIdx - 1);
+			});
+			nextBtn.addEventListener('click', function() {
+				if (countSlides() < 2) return;
+				carouselIdx = showSlide(carouselIdx + 1);
+			});
+		}
+
+		// Share modal
+		var shareModal = document.getElementById('share-recipe-modal');
+		var shareOverlay = document.getElementById('share-modal-overlay');
+		var btnShare = document.getElementById('btn-share-recipe');
+		var btnShareCancel = document.getElementById('share-modal-cancel');
+		var btnShareSend = document.getElementById('share-modal-send');
+		if (btnShare && shareModal) {
+			btnShare.addEventListener('click', function() {
+				shareModal.style.display = 'flex';
+				document.querySelectorAll('.share-friend-checkbox').forEach(function(cb) { cb.checked = false; });
+			});
+			function closeShareModal() { shareModal.style.display = 'none'; }
+			if (shareOverlay) shareOverlay.addEventListener('click', closeShareModal);
+			if (btnShareCancel) btnShareCancel.addEventListener('click', closeShareModal);
+			if (btnShareSend) btnShareSend.addEventListener('click', function() {
+				var checked = document.querySelectorAll('.share-friend-checkbox:checked');
+				var ids = Array.prototype.map.call(checked, function(cb) { return parseInt(cb.value, 10); });
+				if (ids.length === 0) { alert('Please select at least one friend.'); return; }
+				btnShareSend.disabled = true;
+				fetch('/Recipe/' + recipeId + '/share', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ recipient_ids: ids }),
+					credentials: 'same-origin'
+				}).then(function(r) { return r.json(); }).then(function(data) {
+					closeShareModal();
+					alert(data.message || (data.success ? 'Recipe shared!' : data.error || 'Failed'));
+				}).catch(function() { alert('Something went wrong.'); }).finally(function() { btnShareSend.disabled = false; });
+			});
 		}
 	})();
 	</script>

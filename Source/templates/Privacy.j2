@@ -1,0 +1,51 @@
+{% extends "Base.j2" %}
+
+{% block title %}Privacy Policy — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card legal-page">
+		<h1>Privacy Policy</h1>
+		<p class="text-muted">Last updated: {{ current_year }}</p>
+
+		<section class="legal-section">
+			<h3>Information We Collect</h3>
+			<p>When you use Grocery Guru, we collect:</p>
+			<ul>
+				<li><strong>Account information:</strong> Email address, display name, and password (stored securely using industry-standard hashing).</li>
+				<li><strong>Your data:</strong> Grocery lists, pantry items, recipes, ratings, comments, and friend connections you create.</li>
+				<li><strong>Usage data:</strong> We may collect basic usage information to improve the service.</li>
+			</ul>
+		</section>
+
+		<section class="legal-section">
+			<h3>How We Use Your Information</h3>
+			<p>We use your information to:</p>
+			<ul>
+				<li>Provide and maintain the Grocery Guru service</li>
+				<li>Authenticate your account and keep your data secure</li>
+				<li>Enable features like sharing recipes with friends</li>
+				<li>Improve our app and fix issues</li>
+			</ul>
+		</section>
+
+		<section class="legal-section">
+			<h3>Data Sharing</h3>
+			<p>We do not sell your personal information. Recipe sharing is limited to friends you explicitly add. Your lists and pantry data are private unless you choose to share them.</p>
+		</section>
+
+		<section class="legal-section">
+			<h3>Data Security</h3>
+			<p>We use secure practices to protect your data, including encrypted passwords and secure connections. You are responsible for keeping your login credentials safe.</p>
+		</section>
+
+		<section class="legal-section">
+			<h3>Your Rights</h3>
+			<p>You can access, update, or delete your account and data at any time through your profile settings. Contact us if you need assistance.</p>
+		</section>
+
+		<section class="legal-section">
+			<h3>Contact</h3>
+			<p>Questions about this policy? <a href="{{ url_for('contact') }}">Contact us</a>.</p>
+		</section>
+	</div>
+{% endblock %}

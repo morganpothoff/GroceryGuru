@@ -1,0 +1,26 @@
+{% extends "Base.j2" %}
+
+{% block title %}Contact — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card legal-page">
+		<h1>Contact Us</h1>
+		<p>Have a question, feedback, or need help? We'd love to hear from you.</p>
+
+		<section class="legal-section">
+			<h3>Get in Touch</h3>
+			<p>For support, feature requests, or general inquiries, please contact me at:</p>
+			<p><a href="mailto:https://www.linkedin.com/in/morgan-pothoff-04a300193/">https://www.linkedin.com/in/morgan-pothoff-04a300193/</a></p>
+			<p class="text-muted">We typically respond within 3-5 business days.</p>
+		</section>
+
+		<section class="legal-section">
+			<h3>Other Resources</h3>
+			<ul>
+				<li><a href="{{ url_for('faq') }}">FAQ</a> — Answers to common questions</li>
+				<li><a href="{{ url_for('privacy') }}">Privacy Policy</a> — How we handle your data</li>
+				<li><a href="{{ url_for('terms') }}">Terms of Service</a> — Usage guidelines</li>
+			</ul>
+		</section>
+	</div>
+{% endblock %}

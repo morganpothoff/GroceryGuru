@@ -64,6 +64,35 @@
 		<div id="recipe-view-actions" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
 			<button type="button" id="btn-edit-recipe" class="btn btn-primary">Edit</button>
 			<button type="button" id="btn-share-recipe" class="btn btn-outline">Share</button>
+			<button type="button" id="btn-add-to-list" class="btn btn-outline">Add to list</button>
+		</div>
+
+		<div id="recipe-add-to-list-section" class="recipe-add-section" style="display: none;">
+			<h3>Add ingredients to shopping list</h3>
+			<form method="POST" action="{{ url_for('find_recipe_add_to_list') }}" class="add-to-list-form">
+				<input type="hidden" name="recipe_id" value="{{ recipe.id }}">
+				<div class="form-group">
+					<label for="recipe-dest">Add to</label>
+					<select id="recipe-dest" name="destination" required>
+						{% for value, label in dest_options %}
+						<option value="{{ value }}" {% if value == 'Grocery list' %}selected{% endif %}>{{ label }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="form-group" id="recipe-new-list-group" style="display: none;">
+					<label for="recipe-new_list_name">New list name</label>
+					<input type="text" id="recipe-new_list_name" name="new_list_name" placeholder="e.g. Birthday Party Shopping">
+				</div>
+				<div class="form-group">
+					<label class="checkbox-label">
+						<input type="checkbox" name="include_owned" value="on">
+						Include ingredients I already have
+					</label>
+					<p class="text-muted form-hint">Leave unchecked to add only missing ingredients.</p>
+				</div>
+				<button type="submit" class="btn btn-primary">Add ingredients</button>
+				<button type="button" id="btn-cancel-add-to-list" class="btn btn-secondary">Cancel</button>
+			</form>
 		</div>
 
 		<!-- Share recipe modal -->
@@ -233,14 +262,33 @@
 			view.style.display = 'none';
 			form.style.display = 'block';
 			viewActions.style.display = 'none';
+			document.getElementById('recipe-add-to-list-section').style.display = 'none';
 			document.querySelectorAll('.recipe-edit-only').forEach(function(el) { el.style.display = ''; });
 		});
 		btnCancel.addEventListener('click', function() {
 			view.style.display = 'block';
 			form.style.display = 'none';
 			viewActions.style.display = 'block';
+			document.getElementById('recipe-add-to-list-section').style.display = 'none';
 			document.querySelectorAll('.recipe-edit-only').forEach(function(el) { el.style.display = 'none'; });
 		});
+
+		var btnAddToList = document.getElementById('btn-add-to-list');
+		var addToListSection = document.getElementById('recipe-add-to-list-section');
+		var btnCancelAddToList = document.getElementById('btn-cancel-add-to-list');
+		var recipeDest = document.getElementById('recipe-dest');
+		var recipeNewListGroup = document.getElementById('recipe-new-list-group');
+		if (btnAddToList && addToListSection) {
+			btnAddToList.addEventListener('click', function() {
+				addToListSection.style.display = addToListSection.style.display === 'none' ? 'block' : 'none';
+			});
+			if (btnCancelAddToList) btnCancelAddToList.addEventListener('click', function() { addToListSection.style.display = 'none'; });
+		}
+		if (recipeDest && recipeNewListGroup) {
+			function toggleNewList() { recipeNewListGroup.style.display = recipeDest.value === '__new__' ? 'block' : 'none'; }
+			recipeDest.addEventListener('change', toggleNewList);
+			toggleNewList();
+		}
 
 		// Restore checkbox state from localStorage
 		function loadChecks(type) {
