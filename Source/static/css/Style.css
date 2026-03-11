@@ -1348,3 +1348,121 @@ a:hover {
 	color: var(--error);
 	border: 1px solid var(--error);
 }
+
+/* --- Share recipe modal --- */
+.share-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1.5rem;
+}
+
+.share-modal-overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+}
+
+.share-modal-content {
+	position: relative;
+	background: var(--bg-secondary);
+	border-radius: 12px;
+	box-shadow: var(--shadow-lg);
+	padding: 1.5rem;
+	max-width: 400px;
+	width: 100%;
+	max-height: 80vh;
+	overflow-y: auto;
+}
+
+.share-modal-content h2 {
+	margin: 0 0 1rem 0;
+	font-size: 1.25rem;
+}
+
+.share-friends-list {
+	list-style: none;
+	padding: 0;
+	margin: 0 0 1rem 0;
+	max-height: 240px;
+	overflow-y: auto;
+}
+
+.share-friend-item {
+	margin-bottom: 0.25rem;
+}
+
+.share-friend-label {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.share-friend-label:hover {
+	background: var(--accent-bg);
+}
+
+.share-friend-checkbox {
+	margin: 0;
+}
+
+.share-friend-name {
+	font-weight: 500;
+}
+
+.share-friend-email {
+	font-size: 0.875rem;
+}
+
+.share-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--border);
+}
+
+.shared-by-tag {
+	margin: -0.25rem 0 1rem 0;
+	font-size: 0.95rem;
+	color: var(--text-muted);
+}
+
+.shared-by-tag strong {
+	color: var(--text-secondary);
+}
+
+.notification-item {
+	position: relative;
+	padding-right: 2.5rem;
+}
+
+.notification-dismiss-form {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+}
+
+.notification-dismiss-btn {
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	font-size: 1.5rem;
+	line-height: 1;
+	padding: 0.25rem 0.5rem;
+	cursor: pointer;
+	border-radius: 4px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.notification-dismiss-btn:hover {
+	color: var(--text-primary);
+	background: var(--accent-bg);
+}

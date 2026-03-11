@@ -169,6 +169,49 @@ def _migrate_friend_requests_if_needed():
 			""")
 
 
+def _migrate_recipe_shares_if_needed():
+	"""Create RecipeShares table for recipe sharing between friends."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='RecipeShares'")
+		if cur.fetchone() is None:
+			raw.execute("""
+				CREATE TABLE "RecipeShares" (
+					"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+					"Recipes.id" INTEGER NOT NULL,
+					"sharer_id" INTEGER NOT NULL,
+					"recipient_id" INTEGER NOT NULL,
+					"created_at" TEXT NOT NULL DEFAULT (datetime('now')),
+					FOREIGN KEY ("Recipes.id") REFERENCES "Recipes"("id"),
+					FOREIGN KEY ("sharer_id") REFERENCES "Persons"("id"),
+					FOREIGN KEY ("recipient_id") REFERENCES "Persons"("id")
+				)
+			""")
+
+
+def _migrate_dismissed_notifications_if_needed():
+	"""Create DismissedNotifications table for tracking dismissed notifications."""
+	import sqlite3
+	if not Path(_db_path).exists():
+		return
+	with sqlite3.connect(_db_path) as raw:
+		cur = raw.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='DismissedNotifications'")
+		if cur.fetchone() is None:
+			raw.execute("""
+				CREATE TABLE "DismissedNotifications" (
+					"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+					"user_id" INTEGER NOT NULL,
+					"notification_type" TEXT NOT NULL,
+					"notification_id" INTEGER NOT NULL,
+					"dismissed_at" TEXT NOT NULL DEFAULT (datetime('now')),
+					UNIQUE ("user_id", "notification_type", "notification_id"),
+					FOREIGN KEY ("user_id") REFERENCES "Persons"("id")
+				)
+			""")
+
+
 _init_schema_if_needed()
 _migrate_add_notes_if_needed()
 _migrate_recipes_table_if_needed()
@@ -177,6 +220,8 @@ _migrate_recipe_ratings_if_needed()
 _migrate_recipe_comments_if_needed()
 _migrate_recipe_images_if_needed()
 _migrate_friend_requests_if_needed()
+_migrate_recipe_shares_if_needed()
+_migrate_dismissed_notifications_if_needed()
 
 # reflect the tables
 Base = automap_base()
@@ -195,6 +240,8 @@ RecipeRatings = Base.classes.RecipeRatings
 RecipeComments = Base.classes.RecipeComments
 RecipeImages = Base.classes.RecipeImages
 FriendRequests = Base.classes.FriendRequests
+RecipeShares = Base.classes.RecipeShares
+DismissedNotifications = Base.classes.DismissedNotifications
 
 
 def get_user_count():
@@ -634,6 +681,113 @@ def unfriend(user_id: int, friend_id: int) -> bool:
 		session.execute(sql_delete(FriendRequests.__table__).where(FriendRequests.__table__.c.id == row.id))
 		session.commit()
 		return True
+
+
+# ————————————————————————————————— Recipe sharing ———————————————————————————————— #
+
+def create_recipe_share(recipe_id: int, sharer_id: int, recipient_id: int) -> int:
+	"""Create a recipe share. Returns share id. Raises ValueError if invalid."""
+	if sharer_id == recipient_id:
+		raise ValueError("You cannot share a recipe with yourself.")
+	with Session(engine) as session:
+		# Check recipe exists and belongs to sharer
+		recipe = session.query(Recipes).filter(
+			Recipes.id == recipe_id,
+			getattr(Recipes, "Persons.id") == sharer_id,
+			Recipes.is_deleted == False,
+		).first()
+		if not recipe:
+			raise ValueError("Recipe not found.")
+		# Check not already shared with this recipient
+		existing = session.query(RecipeShares).filter(
+			getattr(RecipeShares, "Recipes.id") == recipe_id,
+			RecipeShares.sharer_id == sharer_id,
+			RecipeShares.recipient_id == recipient_id,
+		).first()
+		if existing:
+			raise ValueError("Recipe already shared with this friend.")
+		stmt = insert(RecipeShares.__table__).values(**{
+			"Recipes.id": recipe_id,
+			"sharer_id": sharer_id,
+			"recipient_id": recipient_id,
+		})
+		result = session.execute(stmt)
+		session.commit()
+		return result.inserted_primary_key[0]
+
+
+def share_recipe_with_friends(recipe_id: int, sharer_id: int, recipient_ids: list[int]) -> tuple[int, list[str]]:
+	"""Share recipe with multiple friends. Returns (success_count, list of error messages)."""
+	success = 0
+	errors = []
+	for rid in recipient_ids:
+		if rid == sharer_id:
+			continue
+		try:
+			create_recipe_share(recipe_id, sharer_id, rid)
+			success += 1
+		except ValueError as e:
+			errors.append(str(e))
+	return success, errors
+
+
+def dismiss_notification(user_id: int, notification_type: str, notification_id: int) -> bool:
+	"""Mark a notification as dismissed. Returns True if recorded (or already dismissed)."""
+	notification_type = (notification_type or "").strip().lower()
+	if notification_type not in ("friend_request", "recipe_share"):
+		return False
+	with Session(engine) as session:
+		existing = session.query(DismissedNotifications).filter(
+			DismissedNotifications.user_id == user_id,
+			DismissedNotifications.notification_type == notification_type,
+			DismissedNotifications.notification_id == notification_id,
+		).first()
+		if existing:
+			return True
+		stmt = insert(DismissedNotifications.__table__).values(**{
+			"user_id": user_id,
+			"notification_type": notification_type,
+			"notification_id": notification_id,
+		})
+		session.execute(stmt)
+		session.commit()
+	return True
+
+
+def add_shared_recipe_to_user(share_id: int, recipient_id: int) -> int | None:
+	"""Copy the shared recipe to the recipient's recipes. Returns new recipe id or None if invalid."""
+	with Session(engine) as session:
+		share = session.query(RecipeShares).filter(
+			RecipeShares.id == share_id,
+			RecipeShares.recipient_id == recipient_id,
+		).first()
+		if not share:
+			return None
+		recipe_id = getattr(share, "Recipes.id")
+		recipe = session.query(Recipes).filter(
+			Recipes.id == recipe_id,
+			Recipes.is_deleted == False,
+		).first()
+		if not recipe:
+			return None
+		# Create copy for recipient
+		new_id = create_recipe(
+			title=recipe.title,
+			Persons_id=recipient_id,
+			ingredients=recipe.ingredients or "",
+			steps=recipe.steps or "",
+			special_notes=recipe.special_notes or None,
+			source_url=recipe.source_url or None,
+			category=recipe.category or None,
+			image_url=getattr(recipe, "image_url", None) or None,
+		)
+		# Copy RecipeImages
+		images = session.query(RecipeImages).filter(
+			getattr(RecipeImages, "Recipes.id") == recipe_id,
+		).order_by(RecipeImages.sort_order).all()
+		for i, img in enumerate(images):
+			create_recipe_image(new_id, img.file_path)
+		return new_id
 
 
 def update_person_profile(person_id: int, name: str = None, email: str = None) -> bool:

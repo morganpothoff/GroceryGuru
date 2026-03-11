@@ -1,0 +1,156 @@
+{% extends "Base.j2" %}
+
+{% block title %}{{ recipe.title }} — Shared by {{ sharer.name or sharer.email }} — Grocery Guru{% endblock %}
+
+{% block content %}
+	<div class="card">
+		<div class="recipe-header-row">
+			<p class="recipe-breadcrumb" style="margin: 0;">
+				<a href="{{ url_for('recipes_index') }}">← Recipes</a>
+				| <a href="{{ url_for('notifications') }}">Notifications</a>
+			</p>
+		</div>
+
+		<div id="recipe-images-wrapper" class="{% if not recipe_images_data %}recipe-images-empty{% endif %}">
+			<div class="recipe-image-carousel" id="recipe-image-carousel" {% if not recipe_images_data %}style="display: none;"{% endif %}>
+				<button type="button" class="recipe-carousel-arrow recipe-carousel-prev recipe-carousel-arrow-hide" id="recipe-carousel-prev" aria-label="Previous image">‹</button>
+				<div class="recipe-carousel-inner" id="recipe-carousel-inner">
+					{% for img in recipe_images_data %}
+						<div class="recipe-carousel-slide {% if loop.first %}active{% endif %}">
+							<img src="{{ img.url }}" alt="{{ recipe.title }}" class="recipe-carousel-img {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}">
+						</div>
+					{% endfor %}
+				</div>
+				<button type="button" class="recipe-carousel-arrow recipe-carousel-next recipe-carousel-arrow-hide" id="recipe-carousel-next" aria-label="Next image">›</button>
+			</div>
+		</div>
+
+		<h1>{{ recipe.title }}</h1>
+		<p class="shared-by-tag">Shared by <strong>{{ sharer.name or sharer.email }}</strong></p>
+
+		<div id="recipe-view" class="recipe-profile-view">
+			<p class="recipe-source">
+				<strong>Source:</strong>
+				{% if recipe.source_url %}
+					<a href="{{ recipe.source_url }}" target="_blank" rel="noopener noreferrer">{{ recipe.source_url }}</a>
+				{% else %}
+					<span class="text-muted">(none)</span>
+				{% endif %}
+			</p>
+			<div class="recipe-section">
+				<h3>Ingredients</h3>
+				<ul class="recipe-checklist" id="recipe-ingredients-list">
+					{% for line in ingredients_list %}
+					<li class="recipe-check-item">
+						<label class="recipe-check-label">
+							<input type="checkbox" class="recipe-checkbox" data-type="ingredients" data-index="{{ loop.index0 }}">
+							<span class="recipe-check-text">{{ line }}</span>
+						</label>
+					</li>
+					{% else %}
+					<li class="recipe-check-empty"><span class="text-muted">(none)</span></li>
+					{% endfor %}
+				</ul>
+			</div>
+			<div class="recipe-section">
+				<h3>Steps</h3>
+				<ul class="recipe-checklist" id="recipe-steps-list">
+					{% for line in steps_list %}
+					<li class="recipe-check-item">
+						<label class="recipe-check-label">
+							<input type="checkbox" class="recipe-checkbox" data-type="steps" data-index="{{ loop.index0 }}">
+							<span class="recipe-check-text">{{ line }}</span>
+						</label>
+					</li>
+					{% else %}
+					<li class="recipe-check-empty"><span class="text-muted">(none)</span></li>
+					{% endfor %}
+				</ul>
+			</div>
+			<div class="recipe-section">
+				<h3>Notes</h3>
+				<pre class="recipe-block">{{ recipe.special_notes or '(none)' }}</pre>
+			</div>
+		</div>
+
+		<div class="shared-recipe-actions" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+			<form method="post" action="{{ url_for('shared_recipe_detail', share_id=share.id) }}" style="display: inline;">
+				<input type="hidden" name="action" value="add">
+				<button type="submit" class="btn btn-primary">Add to my recipes</button>
+			</form>
+			<a href="{{ url_for('notifications') }}" class="btn btn-secondary">Exit without adding</a>
+		</div>
+	</div>
+	<script>
+	(function() {
+		var recipeId = {{ recipe.id }};
+		var storageKey = function(type) { return 'shared-recipe-' + recipeId + '-' + type; };
+
+		// Restore checkbox state from localStorage
+		function loadChecks(type) {
+			try {
+				var raw = localStorage.getItem(storageKey(type));
+				if (raw) {
+					var idx = JSON.parse(raw);
+					document.querySelectorAll('.recipe-checkbox[data-type="' + type + '"]').forEach(function(cb) {
+						cb.checked = idx.indexOf(parseInt(cb.dataset.index, 10)) >= 0;
+					});
+				}
+			} catch (e) {}
+		}
+		loadChecks('ingredients');
+		loadChecks('steps');
+
+		document.querySelectorAll('.recipe-checkbox').forEach(function(cb) {
+			cb.addEventListener('change', function() {
+				var type = this.dataset.type;
+				var checked = [];
+				document.querySelectorAll('.recipe-checkbox[data-type="' + type + '"]').forEach(function(c) {
+					if (c.checked) checked.push(parseInt(c.dataset.index, 10));
+				});
+				try { localStorage.setItem(storageKey(type), JSON.stringify(checked)); } catch (e) {}
+			});
+		});
+
+		var carousel = document.getElementById('recipe-image-carousel');
+		var carouselInner = document.getElementById('recipe-carousel-inner');
+		var prevBtn = document.getElementById('recipe-carousel-prev');
+		var nextBtn = document.getElementById('recipe-carousel-next');
+
+		function countSlides() { return (carouselInner && carouselInner.querySelectorAll('.recipe-carousel-slide').length) || 0; }
+		function updateArrows() {
+			var n = countSlides();
+			if (prevBtn && nextBtn) {
+				prevBtn.classList.toggle('recipe-carousel-arrow-hide', n < 2);
+				nextBtn.classList.toggle('recipe-carousel-arrow-hide', n < 2);
+			}
+		}
+		updateArrows();
+
+		function showSlide(i) {
+			var imgs = carousel && carousel.querySelectorAll('.recipe-carousel-img');
+			var slides = carousel && carousel.querySelectorAll('.recipe-carousel-slide');
+			if (!imgs || !imgs.length) return;
+			var n = imgs.length;
+			var idx = ((i % n) + n) % n;
+			imgs.forEach(function(img, j) { img.classList.toggle('active', j === idx); });
+			if (slides && slides.length) slides.forEach(function(slide, j) { slide.classList.toggle('active', j === idx); });
+			return idx;
+		}
+
+		var carouselIdx = 0;
+		if (carousel && prevBtn && nextBtn) {
+			prevBtn.addEventListener('click', function() {
+				var n = countSlides();
+				if (n < 2) return;
+				carouselIdx = showSlide(carouselIdx - 1);
+			});
+			nextBtn.addEventListener('click', function() {
+				var n = countSlides();
+				if (n < 2) return;
+				carouselIdx = showSlide(carouselIdx + 1);
+			});
+		}
+	})();
+	</script>
+{% endblock %}

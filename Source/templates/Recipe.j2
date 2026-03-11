@@ -61,8 +61,36 @@
 			</form>
 		</div>
 
-		<div id="recipe-view-actions" style="margin-bottom: 1rem;">
+		<div id="recipe-view-actions" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
 			<button type="button" id="btn-edit-recipe" class="btn btn-primary">Edit</button>
+			<button type="button" id="btn-share-recipe" class="btn btn-outline">Share</button>
+		</div>
+
+		<!-- Share recipe modal -->
+		<div id="share-recipe-modal" class="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-modal-title" style="display: none;">
+			<div class="share-modal-overlay" id="share-modal-overlay"></div>
+			<div class="share-modal-content">
+				<h2 id="share-modal-title">Share recipe with friends</h2>
+				{% if friends %}
+					<ul class="share-friends-list">
+						{% for friend in friends %}
+							<li class="share-friend-item">
+								<label class="share-friend-label">
+									<input type="checkbox" class="share-friend-checkbox" value="{{ friend.id }}" name="share_friend">
+									<span class="share-friend-name">{{ friend.name or friend.email }}</span>
+									{% if friend.email %}<span class="share-friend-email text-muted">({{ friend.email }})</span>{% endif %}
+								</label>
+							</li>
+						{% endfor %}
+					</ul>
+				{% else %}
+					<p class="text-muted">You don't have any friends yet. <a href="{{ url_for('add_friend') }}">Add a friend</a> to share recipes with them.</p>
+				{% endif %}
+				<div class="share-modal-actions">
+					<button type="button" id="share-modal-cancel" class="btn btn-secondary">Cancel</button>
+					<button type="button" id="share-modal-send" class="btn btn-primary" {% if not friends %}disabled{% endif %}>Send</button>
+				</div>
+			</div>
 		</div>
 
 		<div id="recipe-view" class="recipe-profile-view">
@@ -386,6 +414,46 @@
 			return false;
 		}
 		form.addEventListener('submit', onFormSubmit);
+
+		// Share recipe modal
+		var shareModal = document.getElementById('share-recipe-modal');
+		var shareOverlay = document.getElementById('share-modal-overlay');
+		var btnShare = document.getElementById('btn-share-recipe');
+		var btnShareCancel = document.getElementById('share-modal-cancel');
+		var btnShareSend = document.getElementById('share-modal-send');
+		if (btnShare && shareModal) {
+			btnShare.addEventListener('click', function() {
+				shareModal.style.display = 'flex';
+				document.querySelectorAll('.share-friend-checkbox').forEach(function(cb) { cb.checked = false; });
+			});
+			function closeShareModal() {
+				shareModal.style.display = 'none';
+			}
+			if (shareOverlay) shareOverlay.addEventListener('click', closeShareModal);
+			if (btnShareCancel) btnShareCancel.addEventListener('click', closeShareModal);
+			if (btnShareSend) btnShareSend.addEventListener('click', function() {
+				var checked = document.querySelectorAll('.share-friend-checkbox:checked');
+				var ids = Array.prototype.map.call(checked, function(cb) { return parseInt(cb.value, 10); });
+				if (ids.length === 0) {
+					alert('Please select at least one friend.');
+					return;
+				}
+				btnShareSend.disabled = true;
+				fetch('/Recipe/' + recipeId + '/share', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ recipient_ids: ids }),
+					credentials: 'same-origin'
+				}).then(function(r) { return r.json(); }).then(function(data) {
+					closeShareModal();
+					alert(data.message || (data.success ? 'Recipe shared!' : data.error || 'Failed'));
+				}).catch(function() {
+					alert('Something went wrong.');
+				}).finally(function() {
+					btnShareSend.disabled = false;
+				});
+			});
+		}
 	})();
 	</script>
 {% endblock %}
