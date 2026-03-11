@@ -314,6 +314,8 @@ class TestRecipeDetailRoute:
 		assert resp.status_code == 200
 		assert b"Detail Test" in resp.data
 		assert b"eggs" in resp.data
+		# Unified view: add-to-list button
+		assert b"Add to list" in resp.data
 
 	def test_recipe_detail_update(self, logged_in_client):
 		"""POST to /Recipe/<id> with action=update saves changes."""

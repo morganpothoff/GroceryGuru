@@ -285,6 +285,31 @@ class TestFindRecipeRoutes:
 		resp = client.get("/FindRecipe/Results?ids=99999&i=0", follow_redirects=False)
 		assert resp.status_code == 404
 
+	def test_find_recipe_results_shows_unified_content(self, logged_in_client):
+		"""FindRecipeResults shows ratings, comments, share, and add-to-list (unified recipe view)."""
+		client, user_id = logged_in_client
+		rid = create_recipe(
+			"Unified View Recipe",
+			user_id,
+			ingredients="flour\nsugar",
+			category="Desserts",
+		)
+		resp = client.get(f"/FindRecipe/Results?ids={rid}&i=0", follow_redirects=True)
+		assert resp.status_code == 200
+		assert b"Unified View Recipe" in resp.data
+		# Ratings section
+		assert b"Rate:" in resp.data or b"rating" in resp.data.lower()
+		# Share button
+		assert b"Share" in resp.data
+		# Comments section
+		assert b"Comments" in resp.data
+		assert b"Add a comment" in resp.data or b"Post comment" in resp.data
+		# Add to list form
+		assert b"Add ingredients to shopping list" in resp.data
+		assert b"Add to" in resp.data or b"destination" in resp.data.lower()
+		# Checkboxes for ingredients/steps (cooking checklist)
+		assert b"recipe-checkbox" in resp.data or b"checkbox" in resp.data.lower()
+
 
 # ————————————————————————————————— Routes: Add to Shopping List ————————————— #
 

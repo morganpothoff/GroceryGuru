@@ -416,6 +416,8 @@ class TestSharedRecipeDetailRoute:
 		assert b"Exit without adding" in resp.data
 		assert b"Shared by" in resp.data
 		assert b"Sharer" in resp.data
+		# Unified view: add-to-list section
+		assert b"Add ingredients to shopping list" in resp.data
 
 	def test_shared_recipe_viewing_auto_dismisses_notification(self, logged_in_client, recipe_share, recipient_id):
 		"""GET /Recipe/Shared/<id> auto-dismisses the notification so it no longer appears."""
@@ -480,6 +482,119 @@ class TestSharedRecipeDetailRoute:
 		"""GET /Recipe/Shared/99999 returns 404."""
 		client, _ = logged_in_client
 		resp = client.get("/Recipe/Shared/99999", follow_redirects=False)
+		assert resp.status_code == 404
+
+
+# ————————————————————————————————— Routes: shared recipe add to list ———————— #
+
+class TestSharedRecipeAddToShoppingList:
+	"""Tests for POST /Recipe/Shared/<share_id>/AddToShoppingList."""
+
+	def test_shared_add_to_list_requires_login(self, client, recipe_share):
+		"""POST redirects when not authenticated."""
+		resp = client.post(
+			f"/Recipe/Shared/{recipe_share}/AddToShoppingList",
+			data={"destination": "Grocery list"},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=False,
+		)
+		assert resp.status_code in (302, 401)
+
+	def test_shared_add_to_list_success(self, logged_in_client, recipe_share, recipient_id):
+		"""POST adds ingredients from shared recipe to recipient's list."""
+		from database import Select
+
+		email = f"add_list_recipient_{id(object())}@test.com"
+		rec_id = create_user(email, "Add List Recipient", "Pass123")
+		client, _ = logged_in_client
+		client.post("/Logout", follow_redirects=True)
+		client.post("/Login", data={"email": email, "pass": "Pass123"}, follow_redirects=True)
+
+		sharer_id = create_user(f"add_list_sharer_{id(object())}@test.com", "Sharer", "pass")
+		create_friend_request(sharer_id, rec_id)
+		req = Select.get_pending_friend_requests_for_user(rec_id)[0][0]
+		accept_friend_request(req.id, rec_id)
+		rid = create_recipe("Add To List Recipe", sharer_id, ingredients="flour\nsugar\nbutter")
+		share_id = create_recipe_share(rid, sharer_id, rec_id)
+
+		resp = client.post(
+			f"/Recipe/Shared/{share_id}/AddToShoppingList",
+			data={"destination": "Grocery list"},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=True,
+		)
+		assert resp.status_code == 200
+		assert b"Added" in resp.data and b"ingredient" in resp.data.lower()
+
+		lists = Select.get_Lists_by_Persons_id(rec_id)
+		grocery = next((l for l in lists if l.name == "Grocery list"), None)
+		assert grocery is not None
+		items = Select.get_ListIngredients_by_Lists_id(grocery.id, rec_id)
+		names = [ing.name for _, ing in items]
+		assert len(names) == 3
+		assert "flour" in names
+		assert "sugar" in names
+		assert "butter" in names
+
+	def test_shared_add_to_list_excludes_owned_by_default(self, logged_in_client):
+		"""When include_owned is unchecked, only missing ingredients are added."""
+		from datetime import datetime
+		from database import get_or_create_ingredient, create_inventory_ingredient
+		from database import Select
+
+		email = f"exclude_owned_{id(object())}@test.com"
+		rec_id = create_user(email, "Exclude Owned Recipient", "Pass123")
+		client, _ = logged_in_client
+		client.post("/Logout", follow_redirects=True)
+		client.post("/Login", data={"email": email, "pass": "Pass123"}, follow_redirects=True)
+
+		# Add flour to pantry
+		flour_id = get_or_create_ingredient("flour", rec_id)
+		create_inventory_ingredient(1, datetime.utcnow(), None, flour_id, None)
+
+		sharer_id = create_user(f"exclude_sharer_{id(object())}@test.com", "Sharer", "pass")
+		create_friend_request(sharer_id, rec_id)
+		req = Select.get_pending_friend_requests_for_user(rec_id)[0][0]
+		accept_friend_request(req.id, rec_id)
+		rid = create_recipe("Exclude Owned", sharer_id, ingredients="2 cups flour\n1 cup sugar")
+		share_id = create_recipe_share(rid, sharer_id, rec_id)
+
+		resp = client.post(
+			f"/Recipe/Shared/{share_id}/AddToShoppingList",
+			data={"destination": "Grocery list"},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=True,
+		)
+		assert resp.status_code == 200
+
+		lists = Select.get_Lists_by_Persons_id(rec_id)
+		grocery = next((l for l in lists if l.name == "Grocery list"), None)
+		assert grocery is not None
+		items = Select.get_ListIngredients_by_Lists_id(grocery.id, rec_id)
+		names = [ing.name for _, ing in items]
+		assert "1 cup sugar" in names
+		assert not any("flour" in n.lower() for n in names)
+
+	def test_shared_add_to_list_404_for_wrong_recipient(self, logged_in_client, recipe_share):
+		"""POST returns 404 when current user is not the recipient."""
+		client, _ = logged_in_client
+		resp = client.post(
+			f"/Recipe/Shared/{recipe_share}/AddToShoppingList",
+			data={"destination": "Grocery list"},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=False,
+		)
+		assert resp.status_code == 404
+
+	def test_shared_add_to_list_404_for_nonexistent(self, logged_in_client):
+		"""POST /Recipe/Shared/99999/AddToShoppingList returns 404."""
+		client, _ = logged_in_client
+		resp = client.post(
+			"/Recipe/Shared/99999/AddToShoppingList",
+			data={"destination": "Grocery list"},
+			content_type="application/x-www-form-urlencoded",
+			follow_redirects=False,
+		)
 		assert resp.status_code == 404
 
 
